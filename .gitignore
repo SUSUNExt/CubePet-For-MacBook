@@ -1,0 +1,8 @@
+.build/
+dist/
+.codex/
+.swiftpm/
+.DS_Store
+Package.resolved
+*.dmg
+UploadGithub/
