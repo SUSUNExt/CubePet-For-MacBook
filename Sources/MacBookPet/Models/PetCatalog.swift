@@ -10,6 +10,8 @@ enum PetSkinName {
     case catClassic
     case catGrayTabby
     case catCalico
+    case catBlack
+    case catSiamese
 }
 
 enum PetName {
@@ -133,6 +135,20 @@ enum PetCatalog {
                 id: "cat.calico",
                 name: .catCalico,
                 color: NSColor(srgbRed: 0.91, green: 0.49, blue: 0.12, alpha: 1),
+                unlockLevel: 1,
+                price: 30
+            ),
+            PetSkinDefinition(
+                id: "cat.black",
+                name: .catBlack,
+                color: NSColor(srgbRed: 0.07, green: 0.06, blue: 0.05, alpha: 1),
+                unlockLevel: 1,
+                price: 30
+            ),
+            PetSkinDefinition(
+                id: "cat.siamese",
+                name: .catSiamese,
+                color: NSColor(srgbRed: 0.82, green: 0.72, blue: 0.56, alpha: 1),
                 unlockLevel: 1,
                 price: 30
             )

@@ -135,7 +135,7 @@ final class PetState: ObservableObject {
     }
 
     private func blink() async {
-        guard expression != .sleepy, expression != .scared, expression != .drowsy, expression != .sleeping else { return }
+        guard expression != .scared, expression != .sleeping else { return }
 
         withAnimation(.easeInOut(duration: 0.08)) {
             isBlinking = true
@@ -153,21 +153,11 @@ final class PetState: ObservableObject {
         guard !isMusicReactionActive else { return }
 
         idleTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 300_000_000_000)
+            try? await Task.sleep(nanoseconds: 480_000_000_000)
             guard !Task.isCancelled else { return }
 
             await MainActor.run {
                 guard self?.expression == .calm else { return }
-                withAnimation(.easeInOut(duration: 0.35)) {
-                    self?.expression = .drowsy
-                }
-            }
-
-            try? await Task.sleep(nanoseconds: 180_000_000_000)
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                guard self?.expression == .drowsy else { return }
                 withAnimation(.easeInOut(duration: 0.35)) {
                     self?.expression = .sleeping
                 }

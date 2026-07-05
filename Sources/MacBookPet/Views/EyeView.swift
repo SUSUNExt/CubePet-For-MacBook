@@ -3,18 +3,17 @@ import SwiftUI
 struct EyeView: View {
     let style: EyeStyle
     let isBlinking: Bool
+    let color: Color
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            eyeShape
-                .foregroundStyle(.white)
-                .frame(width: size.width, height: size.height)
-                .scaleEffect(x: 1, y: yScale(at: timeline.date), anchor: .center)
-                .rotationEffect(rotation)
-                .shadow(color: .white.opacity(0.95), radius: 8)
-                .shadow(color: .white.opacity(0.55), radius: 18)
-                .animation(.easeInOut(duration: 0.12), value: isBlinking)
-        }
+        eyeShape
+            .foregroundStyle(color)
+            .frame(width: size.width, height: size.height)
+            .scaleEffect(x: 1, y: isBlinking ? 0.08 : 1, anchor: .center)
+            .rotationEffect(rotation)
+            .shadow(color: color.opacity(0.80), radius: 8)
+            .shadow(color: color.opacity(0.40), radius: 18)
+            .animation(.easeInOut(duration: 0.12), value: isBlinking)
     }
 
     @ViewBuilder
@@ -22,20 +21,18 @@ struct EyeView: View {
         switch style {
         case .smile:
             SmileEye(isInverted: false)
-                .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
         case .invertedSmile:
             SmileEye(isInverted: true)
-                .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
         case .chevronLeft:
             ChevronEye(opensLeft: true)
-                .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
         case .chevronRight:
             ChevronEye(opensLeft: false)
-                .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
         case .sleepy:
             Capsule(style: .continuous)
-        case .drowsy:
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
         case .annoyedLeft, .annoyedRight:
             Capsule(style: .continuous)
         case .round, .largeRound, .smallRound:
@@ -55,8 +52,6 @@ struct EyeView: View {
             return CGSize(width: 14, height: 11)
         case .sleepy:
             return CGSize(width: 14, height: 4)
-        case .drowsy:
-            return CGSize(width: 10, height: 15)
         case .annoyedLeft, .annoyedRight:
             return CGSize(width: 15, height: 4)
         case .chevronLeft, .chevronRight:
@@ -75,19 +70,6 @@ struct EyeView: View {
         default:
             return .degrees(0)
         }
-    }
-
-    private func yScale(at date: Date) -> CGFloat {
-        if isBlinking {
-            return 0.08
-        }
-
-        guard style == .drowsy else {
-            return 1
-        }
-
-        let wave = (sin(date.timeIntervalSinceReferenceDate * 1.8) + 1) / 2
-        return 0.42 + CGFloat(wave) * 0.58
     }
 }
 

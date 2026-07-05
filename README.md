@@ -1,4 +1,4 @@
-CubePet
+# MacBookPet
 
 A tiny native macOS desktop pet prototype.
 
@@ -8,38 +8,35 @@ A tiny native macOS desktop pet prototype.
 - Click to cycle expressions
 - Drag to move
 - Right-click for Reset Mood and Quit
-- Earn 1G for every hour the pet stays running
+- Earn 1G for every five minutes the pet stays running
 - Buy food to level up the current pet
-- Unlock and buy new skins as the pet levels up
-- Buy additional pets from the menu bar shop
+- Use all built-in pets without purchasing them
+- Unlock additional cat skins with in-game coins
+- Customize official pets or create a pet from imported PNG artwork
 
+Run it with:
 
-GitHub upload
+```bash
+./script/build_and_run.sh
+```
 
-- `Package.swift`
-- `Sources/`
-- `Assets/`
-- `script/`
-- `.gitignore`
-- `README.md`
+## Build a DMG
 
--------------------------------------------------
-CubePet
+Create a release build and a drag-to-Applications installer:
 
-一款小巧的原生 macOS 桌面宠物原型。
+```bash
+./script/package_dmg.sh
+```
 
-- 透明悬浮窗口
-- 黑色圆角方形躯体
-- 发光的白色表情眼睛
-- 点击可切换表情
-- 拖动以移动位置
-- 右键菜单包含“重置心情”与“退出”选项
-- 宠物每运行一小时即可获得 1G 货币
-- 购买食物可提升当前宠物等级
-- 随等级提升解锁并购买新皮肤
-- 可通过菜单栏商店购买更多宠物
+The output is written to `dist/CubePet-<version>-<architecture>.dmg`.
+Without an Apple Developer ID certificate, the script applies an ad-hoc
+signature. That is suitable for local testing, but other Macs may show a
+Gatekeeper warning. For public distribution, set `CODESIGN_IDENTITY` to a
+Developer ID Application certificate and notarize the resulting DMG.
 
-GitHub 上传内容
+## GitHub upload
+
+Commit the project source to the repository:
 
 - `Package.swift`
 - `Sources/`
@@ -47,3 +44,7 @@ GitHub 上传内容
 - `script/`
 - `.gitignore`
 - `README.md`
+
+Do not commit `.build/`, `dist/`, `.codex/`, `.DS_Store`, or generated DMG
+files. Attach the DMG separately to a GitHub Release so users can install the
+app without downloading the source repository.

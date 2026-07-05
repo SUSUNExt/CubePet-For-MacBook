@@ -34,4 +34,5 @@ final class PetMotionState: ObservableObject {
             self?.experienceGainEffect = nil
         }
     }
+
 }

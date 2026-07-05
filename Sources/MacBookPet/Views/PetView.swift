@@ -4,6 +4,7 @@ struct PetView: View {
     @ObservedObject var state: PetState
     @ObservedObject var motionState: PetMotionState
     @ObservedObject var appearanceSettings: PetAppearanceSettings
+    @ObservedObject var customizationStore: PetCustomizationStore
     @ObservedObject var languageSettings: LanguageSettings
 
     @State private var isPressed = false
@@ -58,17 +59,51 @@ struct PetView: View {
 
     private func petBody(breathScale: CGFloat, listeningRotation: CGFloat) -> some View {
         let mouthOpen = motionState.feedMouthOpen
+        let configuration = activeVisualConfiguration
+        let visualState: PetVisualState = mouthOpen > 0.02
+            ? .eating
+            : PetVisualState(expression: state.expression)
+        let stateConfiguration = configuration.configuration(
+            for: visualState
+        )
 
         return ZStack {
-            switch appearanceSettings.selectedPet.visualKind {
+            if case let .importedAsset(assetID) = stateConfiguration.base {
+                ImportedPetVisualView(
+                    imageURL: customizationStore.assetURL(for: assetID),
+                    baseOffset: stateConfiguration.baseOffset,
+                    configuration: stateConfiguration.eyes,
+                    expression: state.expression,
+                    isBlinking: state.isBlinking,
+                    gazeOffset: motionState.gazeOffset
+                )
+            } else if appearanceSettings.isCustomPetSelected {
+                ImportedPetVisualView(
+                    imageURL: nil,
+                    baseOffset: stateConfiguration.baseOffset,
+                    configuration: stateConfiguration.eyes,
+                    expression: state.expression,
+                    isBlinking: state.isBlinking,
+                    gazeOffset: motionState.gazeOffset
+                )
+            } else {
+                switch appearanceSettings.selectedPet.visualKind {
             case .cube:
-                cubeBody(mouthOpen: mouthOpen)
+                CubePetView(
+                    color: Color(nsColor: appearanceSettings.selectedSkin.color),
+                    expression: state.expression,
+                    isBlinking: state.isBlinking,
+                    gazeOffset: motionState.gazeOffset,
+                    mouthOpen: mouthOpen,
+                    visualConfiguration: configuration
+                )
             case .frog:
                 FrogPetView(
                     expression: state.expression,
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
-                    mouthOpen: mouthOpen
+                    mouthOpen: mouthOpen,
+                    visualConfiguration: configuration
                 )
             case .cat:
                 CatPetView(
@@ -76,8 +111,10 @@ struct PetView: View {
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
-                    skinID: appearanceSettings.selectedSkinID
+                    skinID: appearanceSettings.selectedSkinID,
+                    visualConfiguration: configuration
                 )
+                }
             }
         }
         .frame(width: PetMetrics.bodyContentSize, height: PetMetrics.bodyContentSize)
@@ -90,7 +127,26 @@ struct PetView: View {
         .animation(.easeInOut(duration: 0.25), value: appearanceSettings.selectedPetID)
     }
 
+    private var activeVisualConfiguration: PetVisualConfiguration {
+        if let customPet = customizationStore.customPet(id: appearanceSettings.selectedPetID) {
+            return customPet.visualConfiguration
+        }
+
+        let official = PetVisualDefaults.configuration(
+            petID: appearanceSettings.selectedPetID,
+            skinID: appearanceSettings.selectedSkinID
+        )
+        return customizationStore.visualConfiguration(
+            petID: appearanceSettings.selectedPetID,
+            skinID: appearanceSettings.selectedSkinID,
+            official: official
+        )
+    }
+
     private var groundAlignmentOffset: CGFloat {
+        if appearanceSettings.isCustomPetSelected {
+            return 5
+        }
         // Align each pet's visible bottom, including PNG transparency, with the physics floor.
         switch appearanceSettings.selectedPet.visualKind {
         case .cube:
@@ -104,60 +160,6 @@ struct PetView: View {
             default: 10.8
             }
         }
-    }
-
-    private func cubeBody(mouthOpen: CGFloat) -> some View {
-        ZStack {
-            cubeBodyShape(
-                mouthOpen: mouthOpen,
-                color: Color(nsColor: appearanceSettings.selectedSkin.color)
-            )
-
-            HStack(spacing: mouthOpen > 0.02 ? 9 : state.expression.eyeSpacing) {
-                EyeView(style: mouthOpen > 0.02 ? .sleepy : state.expression.leftEye, isBlinking: mouthOpen > 0.02 ? false : state.isBlinking)
-                EyeView(style: mouthOpen > 0.02 ? .sleepy : state.expression.rightEye, isBlinking: mouthOpen > 0.02 ? false : state.isBlinking)
-            }
-            .offset(
-                x: mouthOpen > 0.02 ? 0 : motionState.gazeOffset.width,
-                y: eyeVerticalOffset(mouthOpen: mouthOpen)
-            )
-            .animation(.easeOut(duration: 0.10), value: motionState.gazeOffset)
-            .animation(.spring(response: 0.18, dampingFraction: 0.72), value: mouthOpen)
-        }
-    }
-
-    @ViewBuilder
-    private func cubeBodyShape(mouthOpen: CGFloat, color: Color) -> some View {
-        if mouthOpen > 0.01 {
-            let bodySize = PetMetrics.bodyContentSize
-            let lowerHeight = bodySize * 0.34
-            let upperHeight = bodySize - lowerHeight
-            let gap = 3 + mouthOpen * 17
-
-            ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: PetMetrics.cornerRadius, style: .continuous)
-                    .fill(color)
-                    .frame(width: bodySize, height: lowerHeight)
-
-                RoundedRectangle(cornerRadius: PetMetrics.cornerRadius, style: .continuous)
-                    .fill(color)
-                    .frame(width: bodySize, height: upperHeight)
-                    .offset(y: -(lowerHeight + gap))
-            }
-            .frame(width: bodySize, height: bodySize, alignment: .bottom)
-            .animation(.spring(response: 0.18, dampingFraction: 0.72), value: mouthOpen)
-        } else {
-            RoundedRectangle(cornerRadius: PetMetrics.cornerRadius, style: .continuous)
-                .fill(color)
-        }
-    }
-
-    private func eyeVerticalOffset(mouthOpen: CGFloat) -> CGFloat {
-        guard mouthOpen > 0.02 else {
-            return state.expression.verticalOffset + motionState.gazeOffset.height
-        }
-
-        return -9 - mouthOpen * 13
     }
 
     private func sleepingBreathScale(at date: Date, isSleeping: Bool) -> CGFloat {

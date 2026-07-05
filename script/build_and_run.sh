@@ -5,7 +5,7 @@ MODE="${1:-run}"
 APP_NAME="MacBookPet"
 DISPLAY_NAME="CubePet"
 BUNDLE_ID="com.susunext.MacBookPet"
-APP_VERSION="0.7.0"
+APP_VERSION="0.8.0"
 MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,10 +25,20 @@ CAT_GRAY_PET_IMAGE="$ROOT_DIR/Assets/CatPetGrayFaceless.png"
 CAT_GRAY_LARGE_MOUTH_IMAGE="$ROOT_DIR/Assets/CatPetGrayMouthLarge.png"
 CAT_CALICO_PET_IMAGE="$ROOT_DIR/Assets/CatPetCalicoFaceless.png"
 CAT_CALICO_LARGE_MOUTH_IMAGE="$ROOT_DIR/Assets/CatPetCalicoMouthLarge.png"
+CAT_BLACK_PET_IMAGE="$ROOT_DIR/Assets/CatPetBlackFaceless.png"
+CAT_BLACK_LARGE_MOUTH_IMAGE="$ROOT_DIR/Assets/CatPetBlackMouthLarge.png"
+CAT_SIAMESE_PET_IMAGE="$ROOT_DIR/Assets/CatPetSiameseFaceless.png"
+CAT_SIAMESE_MOUTH_IMAGE="$ROOT_DIR/Assets/CatPetSiameseMouthUnique.png"
 
 BUILD_CONFIGURATION="debug"
 if [[ "$MODE" == "--release-app" || "$MODE" == "release-app" ]]; then
   BUILD_CONFIGURATION="release"
+fi
+
+# Keep local builds independent from an unlicensed full Xcode installation.
+# Callers can still override this explicitly when they need another toolchain.
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Library/Developer/CommandLineTools" ]]; then
+  export DEVELOPER_DIR="/Library/Developer/CommandLineTools"
 fi
 
 # The currently selected Command Line Tools can expose a newer default SDK
@@ -62,6 +72,10 @@ cp "$CAT_GRAY_PET_IMAGE" "$APP_RESOURCES/CatPetGrayFaceless.png"
 cp "$CAT_GRAY_LARGE_MOUTH_IMAGE" "$APP_RESOURCES/CatPetGrayMouthLarge.png"
 cp "$CAT_CALICO_PET_IMAGE" "$APP_RESOURCES/CatPetCalicoFaceless.png"
 cp "$CAT_CALICO_LARGE_MOUTH_IMAGE" "$APP_RESOURCES/CatPetCalicoMouthLarge.png"
+cp "$CAT_BLACK_PET_IMAGE" "$APP_RESOURCES/CatPetBlackFaceless.png"
+cp "$CAT_BLACK_LARGE_MOUTH_IMAGE" "$APP_RESOURCES/CatPetBlackMouthLarge.png"
+cp "$CAT_SIAMESE_PET_IMAGE" "$APP_RESOURCES/CatPetSiameseFaceless.png"
+cp "$CAT_SIAMESE_MOUTH_IMAGE" "$APP_RESOURCES/CatPetSiameseMouthUnique.png"
 chmod +x "$APP_BINARY"
 
 cat >"$INFO_PLIST" <<PLIST

@@ -9,9 +9,12 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
     private var musicPlaybackMonitor: MusicPlaybackMonitor?
     private var activeSharingService: NSSharingService?
     private var aboutWindowController: AboutWindowController?
+    private var petCustomizationWindowController: PetCustomizationWindowController?
     private var statusItemController: StatusItemController?
     private var ageStore: PetAgeStore?
     private var progressStore: PetProgressStore?
+    private var customizationStore: PetCustomizationStore?
+    private var featureEntitlementStore: FeatureEntitlementStore?
     private let feedSettings = FeedSettings()
     private let languageSettings = LanguageSettings()
     private let appearanceSettings = PetAppearanceSettings()
@@ -36,12 +39,21 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
         progressStore.start { [weak ageStore] in
             ageStore?.totalRuntime ?? 0
         }
-        appearanceSettings.ensureValidSelection(progress: progressStore)
+        let customizationStore = PetCustomizationStore()
+        self.customizationStore = customizationStore
+        let featureEntitlementStore = FeatureEntitlementStore()
+        self.featureEntitlementStore = featureEntitlementStore
+        appearanceSettings.ensureValidSelection(
+            progress: progressStore,
+            customizationStore: customizationStore,
+            featureEntitlementStore: featureEntitlementStore
+        )
 
         let contentView = PetView(
             state: petState,
             motionState: motionState,
             appearanceSettings: appearanceSettings,
+            customizationStore: customizationStore,
             languageSettings: languageSettings
         )
 
@@ -110,6 +122,13 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
 
         let aboutWindowController = AboutWindowController(languageSettings: languageSettings)
         self.aboutWindowController = aboutWindowController
+        let petCustomizationWindowController = PetCustomizationWindowController(
+            customizationStore: customizationStore,
+            appearanceSettings: appearanceSettings,
+            progressStore: progressStore,
+            languageSettings: languageSettings
+        )
+        self.petCustomizationWindowController = petCustomizationWindowController
 
         statusItemController = StatusItemController(
             feedSettings: feedSettings,
@@ -117,8 +136,13 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             ageStore: ageStore,
             progressStore: progressStore,
             appearanceSettings: appearanceSettings,
+            customizationStore: customizationStore,
+            featureEntitlementStore: featureEntitlementStore,
             onShowAbout: { [weak aboutWindowController] in
                 aboutWindowController?.show()
+            },
+            onShowPetCustomization: { [weak petCustomizationWindowController] in
+                petCustomizationWindowController?.show()
             },
             onQuit: { NSApp.terminate(nil) }
         )
@@ -142,11 +166,17 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
     private func canAcceptFeedFiles(_ urls: [URL]) -> Bool {
         guard let progressStore else { return false }
         let petID = appearanceSettings.selectedPetID
+        let isUsableCustomPet = featureEntitlementStore?.isUnlocked(.petCustomization) == true
+            && customizationStore?.customPet(id: petID) != nil
 
         return urls.contains { url in
             guard DesktopFoodFile.isFoodFile(url) else { return true }
             guard let payload = DesktopFoodFile.payload(at: url) else { return false }
-            return progressStore.canConsumeFood(payload, for: petID)
+            return progressStore.canConsumeFood(
+                payload,
+                for: petID,
+                allowUnownedPet: isUsableCustomPet
+            )
         }
     }
 
@@ -155,6 +185,8 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
     private func handleFedItems(_ urls: [URL]) -> Bool {
         guard let progressStore else { return false }
         let petID = appearanceSettings.selectedPetID
+        let isUsableCustomPet = featureEntitlementStore?.isUnlocked(.petCustomization) == true
+            && customizationStore?.customPet(id: petID) != nil
         var regularURLs: [URL] = []
         var didConsumeFood = false
         var gainedExperience = 0
@@ -167,7 +199,11 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
 
             guard
                 let payload = DesktopFoodFile.payload(at: url),
-                progressStore.consumeFood(payload, for: petID)
+                progressStore.consumeFood(
+                    payload,
+                    for: petID,
+                    allowUnownedPet: isUsableCustomPet
+                )
             else { continue }
 
             DesktopFoodFile.remove(url)

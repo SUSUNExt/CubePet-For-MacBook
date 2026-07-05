@@ -21,8 +21,27 @@ final class PetAppearanceSettings: ObservableObject {
         selectedPet.skin(id: selectedSkinID) ?? selectedPet.skins[0]
     }
 
+    var isCustomPetSelected: Bool {
+        selectedPetID.hasPrefix("custom:")
+    }
+
     @MainActor
-    func ensureValidSelection(progress: PetProgressStore) {
+    func ensureValidSelection(
+        progress: PetProgressStore,
+        customizationStore: PetCustomizationStore,
+        featureEntitlementStore: FeatureEntitlementStore
+    ) {
+        if isCustomPetSelected {
+            guard
+                featureEntitlementStore.isUnlocked(.petCustomization),
+                customizationStore.customPet(id: selectedPetID) != nil
+            else {
+                saveSelection(petID: PetCatalog.cube.id, skinID: PetCatalog.cube.skins[0].id)
+                return
+            }
+            return
+        }
+
         guard
             progress.ownsPet(selectedPetID),
             let skin = selectedPet.skin(id: selectedSkinID),
@@ -59,6 +78,27 @@ final class PetAppearanceSettings: ObservableObject {
             : pet.skins.first { progress.ownsSkin($0.id) && $0.isUnlocked(at: progress.level(for: id)) } ?? pet.skins[0]
         saveSelection(petID: pet.id, skinID: skin.id)
         return true
+    }
+
+    @discardableResult
+    @MainActor
+    func selectCustomPet(
+        id: String,
+        customizationStore: PetCustomizationStore,
+        featureEntitlementStore: FeatureEntitlementStore
+    ) -> Bool {
+        guard
+            featureEntitlementStore.isUnlocked(.petCustomization),
+            customizationStore.customPet(id: id) != nil
+        else { return false }
+
+        saveSelection(petID: id, skinID: id)
+        return true
+    }
+
+    @MainActor
+    func selectDefaultPet() {
+        saveSelection(petID: PetCatalog.cube.id, skinID: PetCatalog.cube.skins[0].id)
     }
 
     private func saveSelection(petID: String, skinID: String) {

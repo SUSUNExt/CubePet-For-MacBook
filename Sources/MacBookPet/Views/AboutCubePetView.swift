@@ -21,11 +21,6 @@ struct AboutCubePetView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 6)
 
-            Text(languageSettings.appStoreAvailabilityTitle())
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .padding(.top, 3)
-
             Divider()
                 .padding(.top, 14)
 

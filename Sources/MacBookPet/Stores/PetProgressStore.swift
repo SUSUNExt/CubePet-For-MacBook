@@ -22,9 +22,15 @@ final class PetProgressStore: ObservableObject {
     private var rewardedRuntime: TimeInterval
     private var pendingFoodByToken: [String: String]
     private var rewardTimer: Timer?
+    private let defaults: UserDefaults
 
-    init(currentRuntime: TimeInterval, selectedPetID: String, selectedSkinID: String) {
-        let defaults = UserDefaults.standard
+    init(
+        currentRuntime: TimeInterval,
+        selectedPetID: String,
+        selectedSkinID: String,
+        defaults: UserDefaults = .standard
+    ) {
+        self.defaults = defaults
         coins = defaults.integer(forKey: Self.coinBalanceKey)
         rewardedRuntime = defaults.double(forKey: Self.rewardedRuntimeKey)
         experienceByPet = Self.decodeDictionary(defaults.data(forKey: Self.experienceKey))
@@ -33,8 +39,7 @@ final class PetProgressStore: ObservableObject {
         ownedSkinIDs = Set(defaults.stringArray(forKey: Self.ownedSkinsKey) ?? [PetCatalog.cube.skins[0].id])
 
         // Preserve selections made by users of versions released before the shop existed.
-        ownedPetIDs.insert(PetCatalog.cube.id)
-        ownedPetIDs.insert(PetCatalog.cat.id)
+        ownedPetIDs.formUnion(PetCatalog.pets.map(\.id))
         ownedPetIDs.insert(selectedPetID)
         ownedSkinIDs.insert(PetCatalog.cube.skins[0].id)
         ownedSkinIDs.insert(PetCatalog.cat.skins[0].id)
@@ -109,16 +114,24 @@ final class PetProgressStore: ObservableObject {
         return true
     }
 
-    func canConsumeFood(_ payload: FoodFilePayload, for petID: String) -> Bool {
-        ownsPet(petID)
+    func canConsumeFood(
+        _ payload: FoodFilePayload,
+        for petID: String,
+        allowUnownedPet: Bool = false
+    ) -> Bool {
+        (allowUnownedPet || ownsPet(petID))
             && pendingFoodByToken[payload.token] == payload.foodID
             && ShopCatalog.food(id: payload.foodID) != nil
     }
 
     @discardableResult
-    func consumeFood(_ payload: FoodFilePayload, for petID: String) -> Bool {
+    func consumeFood(
+        _ payload: FoodFilePayload,
+        for petID: String,
+        allowUnownedPet: Bool = false
+    ) -> Bool {
         guard
-            canConsumeFood(payload, for: petID),
+            canConsumeFood(payload, for: petID, allowUnownedPet: allowUnownedPet),
             let food = ShopCatalog.food(id: payload.foodID)
         else { return false }
 
@@ -164,7 +177,6 @@ final class PetProgressStore: ObservableObject {
     }
 
     private func persist() {
-        let defaults = UserDefaults.standard
         defaults.set(coins, forKey: Self.coinBalanceKey)
         defaults.set(rewardedRuntime, forKey: Self.rewardedRuntimeKey)
         defaults.set(Self.encodeDictionary(experienceByPet), forKey: Self.experienceKey)

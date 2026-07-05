@@ -11,6 +11,7 @@ let package = Package(
         .executable(name: "MacBookPet", targets: ["MacBookPet"])
     ],
     targets: [
-        .executableTarget(name: "MacBookPet")
+        .executableTarget(name: "MacBookPet"),
+        .testTarget(name: "MacBookPetTests", dependencies: ["MacBookPet"])
     ]
 )

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
@@ -26,6 +27,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let shopPetsItem = NSMenuItem()
     private let settingItem = NSMenuItem()
     private let petItem = NSMenuItem()
+    private let petCustomizationItem = NSMenuItem(
+        title: "",
+        action: #selector(openPetCustomization),
+        keyEquivalent: ""
+    )
     private let feedItem = NSMenuItem()
     private let languageItem = NSMenuItem()
     private let showSystemInfoItem = NSMenuItem(title: "", action: #selector(toggleSystemInfo), keyEquivalent: "")
@@ -39,8 +45,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let ageStore: PetAgeStore
     private let progressStore: PetProgressStore
     private let appearanceSettings: PetAppearanceSettings
+    private let customizationStore: PetCustomizationStore
+    private let featureEntitlementStore: FeatureEntitlementStore
     private let metricsMonitor = SystemMetricsMonitor()
     private let onShowAbout: () -> Void
+    private let onShowPetCustomization: () -> Void
     private let onQuit: () -> Void
     private var showsSystemInfo: Bool
     private var languageMenuItems: [AppLanguage: NSMenuItem] = [:]
@@ -50,6 +59,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var shopSkinMenuItems: [String: NSMenuItem] = [:]
     private var shopPetMenuItems: [String: NSMenuItem] = [:]
     private var latestMetrics = SystemMetricsSnapshot()
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         feedSettings: FeedSettings,
@@ -57,7 +67,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         ageStore: PetAgeStore,
         progressStore: PetProgressStore,
         appearanceSettings: PetAppearanceSettings,
+        customizationStore: PetCustomizationStore,
+        featureEntitlementStore: FeatureEntitlementStore,
         onShowAbout: @escaping () -> Void,
+        onShowPetCustomization: @escaping () -> Void,
         onQuit: @escaping () -> Void
     ) {
         self.feedSettings = feedSettings
@@ -65,13 +78,30 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.ageStore = ageStore
         self.progressStore = progressStore
         self.appearanceSettings = appearanceSettings
+        self.customizationStore = customizationStore
+        self.featureEntitlementStore = featureEntitlementStore
         self.onShowAbout = onShowAbout
+        self.onShowPetCustomization = onShowPetCustomization
         self.onQuit = onQuit
         self.showsSystemInfo = UserDefaults.standard.object(forKey: Self.showsSystemInfoKey) as? Bool ?? true
         super.init()
 
         configureButton()
         configureMenu()
+        customizationStore.$customPets
+            .dropFirst()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                if self.appearanceSettings.isCustomPetSelected,
+                   self.customizationStore.customPet(id: self.appearanceSettings.selectedPetID) == nil {
+                    self.appearanceSettings.selectDefaultPet()
+                }
+                self.petItem.submenu = self.makePetMenu()
+                self.skinItem.submenu = self.makeSkinMenu()
+                self.shopSkinsItem.submenu = self.makeShopSkinMenu()
+                self.updateStatusImage()
+            }
+            .store(in: &cancellables)
         progressStore.onChange = { [weak self] in
             guard let self else { return }
             self.updateProgressMenuState()
@@ -89,10 +119,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func configureButton() {
         guard let button = statusItem.button else { return }
 
-        button.image = Self.makeStatusImage(
-            pet: appearanceSettings.selectedPet,
-            skin: appearanceSettings.selectedSkin
-        )
+        updateStatusImage()
         button.imagePosition = .imageOnly
         button.toolTip = "CubePet"
     }
@@ -100,6 +127,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func configureMenu() {
         let menu = NSMenu()
         menu.delegate = self
+        menu.autoenablesItems = false
         menu.minimumWidth = Self.fixedMenuWidth
         configureRootMenuImages()
 
@@ -127,6 +155,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         petItem.submenu = makePetMenu()
         menu.addItem(petItem)
+
+        petCustomizationItem.target = self
+        menu.addItem(petCustomizationItem)
 
         settingItem.submenu = makeSettingMenu()
         menu.addItem(settingItem)
@@ -182,6 +213,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showAbout() {
         onShowAbout()
+    }
+
+    @objc private func openPetCustomization() {
+        guard featureEntitlementStore.isUnlocked(.petCustomization) else {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.messageText = languageSettings.text(.petCustomizationLocked)
+            alert.informativeText = languageSettings.text(.petCustomizationLockedMessage)
+            alert.addButton(withTitle: languageSettings.text(.ok))
+            alert.runModal()
+            return
+        }
+
+        onShowPetCustomization()
     }
 
     @objc private func toggleSystemInfo() {
@@ -248,7 +293,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func selectPet(_ sender: NSMenuItem) {
         guard let petID = sender.representedObject as? String else { return }
 
-        if appearanceSettings.selectPet(id: petID, progress: progressStore) {
+        let didSelect = PetCatalog.pet(id: petID) != nil
+            ? appearanceSettings.selectPet(id: petID, progress: progressStore)
+            : appearanceSettings.selectCustomPet(
+                id: petID,
+                customizationStore: customizationStore,
+                featureEntitlementStore: featureEntitlementStore
+            )
+
+        if didSelect {
             skinItem.submenu = makeSkinMenu()
             shopSkinsItem.submenu = makeShopSkinMenu()
             updateStatusImage()
@@ -365,6 +418,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
         shopSkinMenuItems.removeAll()
 
+        guard !appearanceSettings.isCustomPetSelected else { return menu }
+
         for skin in appearanceSettings.selectedPet.skins {
             let item = NSMenuItem(title: "", action: #selector(buySkin(_:)), keyEquivalent: "")
             item.target = self
@@ -382,6 +437,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
         skinMenuItems.removeAll()
+
+        guard !appearanceSettings.isCustomPetSelected else { return menu }
 
         for skin in appearanceSettings.selectedPet.skins {
             let item = NSMenuItem(title: "", action: #selector(selectSkin(_:)), keyEquivalent: "")
@@ -439,6 +496,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func makePetMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        petMenuItems.removeAll()
 
         for pet in PetCatalog.pets {
             let item = NSMenuItem(title: "", action: #selector(selectPet(_:)), keyEquivalent: "")
@@ -448,6 +506,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             item.image = Self.makeStatusImage(pet: pet, skin: pet.skins[0])
             menu.addItem(item)
             petMenuItems[pet.id] = item
+        }
+
+        if featureEntitlementStore.isUnlocked(.petCustomization) {
+            for pet in customizationStore.customPets {
+                let item = NSMenuItem(title: pet.name, action: #selector(selectPet(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = pet.id
+                item.isEnabled = true
+                item.image = customPetStatusImage(pet)
+                menu.addItem(item)
+                petMenuItems[pet.id] = item
+            }
         }
 
         updatePetMenuState()
@@ -463,6 +533,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         shopPetsItem.title = languageSettings.text(.pets)
         settingItem.title = languageSettings.text(.setting)
         petItem.title = languageSettings.text(.pet)
+        skinItem.isEnabled = !appearanceSettings.isCustomPetSelected
+        updatePetCustomizationMenuState()
         aboutItem.title = languageSettings.text(.aboutCubePet)
         feedItem.title = languageSettings.text(.eatAction)
         languageItem.title = languageSettings.text(.language)
@@ -507,9 +579,31 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             item.isEnabled = progressStore.ownsPet(pet.id)
             item.state = appearanceSettings.selectedPetID == pet.id ? .on : .off
         }
+        for pet in customizationStore.customPets {
+            guard let item = petMenuItems[pet.id] else { continue }
+            item.title = pet.name
+            item.isEnabled = featureEntitlementStore.isUnlocked(.petCustomization)
+            item.state = appearanceSettings.selectedPetID == pet.id ? .on : .off
+        }
+        skinItem.isEnabled = !appearanceSettings.isCustomPetSelected
+        updatePetCustomizationMenuState()
+    }
+
+    private func updatePetCustomizationMenuState() {
+        let isUnlocked = featureEntitlementStore.isUnlocked(.petCustomization)
+        petCustomizationItem.title = languageSettings.text(.petCustomization)
+        petCustomizationItem.isEnabled = isUnlocked
+        petCustomizationItem.image = NSImage(
+            systemSymbolName: isUnlocked ? "slider.horizontal.3" : "lock.fill",
+            accessibilityDescription: nil
+        )
     }
 
     private func updateSkinMenuState() {
+        guard !appearanceSettings.isCustomPetSelected else {
+            skinItem.isEnabled = false
+            return
+        }
         let level = progressStore.level(for: appearanceSettings.selectedPetID)
 
         for skin in appearanceSettings.selectedPet.skins {
@@ -546,13 +640,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             item.isEnabled = progressStore.coins >= food.price
         }
 
-        let petID = appearanceSettings.selectedPetID
-        let level = progressStore.level(for: petID)
-        for skin in appearanceSettings.selectedPet.skins {
-            guard let item = shopSkinMenuItems[skin.id] else { continue }
-            let isOwned = progressStore.ownsSkin(skin.id)
-            item.title = languageSettings.skinStoreTitle(skin, isOwned: isOwned, currentLevel: level)
-            item.isEnabled = !isOwned && skin.isUnlocked(at: level) && progressStore.coins >= skin.price
+        if !appearanceSettings.isCustomPetSelected {
+            let petID = appearanceSettings.selectedPetID
+            let level = progressStore.level(for: petID)
+            for skin in appearanceSettings.selectedPet.skins {
+                guard let item = shopSkinMenuItems[skin.id] else { continue }
+                let isOwned = progressStore.ownsSkin(skin.id)
+                item.title = languageSettings.skinStoreTitle(skin, isOwned: isOwned, currentLevel: level)
+                item.isEnabled = !isOwned && skin.isUnlocked(at: level) && progressStore.coins >= skin.price
+            }
         }
 
         for pet in PetCatalog.pets {
@@ -625,10 +721,38 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func updateStatusImage() {
-        statusItem.button?.image = Self.makeStatusImage(
-            pet: appearanceSettings.selectedPet,
-            skin: appearanceSettings.selectedSkin
+        if let customPet = customizationStore.customPet(id: appearanceSettings.selectedPetID) {
+            statusItem.button?.image = customPetStatusImage(customPet)
+        } else {
+            statusItem.button?.image = Self.makeStatusImage(
+                pet: appearanceSettings.selectedPet,
+                skin: appearanceSettings.selectedSkin
+            )
+        }
+    }
+
+    private func customPetStatusImage(_ pet: CustomPetDefinition) -> NSImage? {
+        let state = pet.visualConfiguration.configuration(for: .normal)
+        guard
+            case let .importedAsset(assetID) = state.base,
+            let url = customizationStore.assetURL(for: assetID),
+            let source = NSImage(contentsOf: url)
+        else {
+            return NSImage(systemSymbolName: "pawprint", accessibilityDescription: nil)
+        }
+
+        let image = NSImage(size: NSSize(width: 18, height: 18))
+        image.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        source.draw(
+            in: NSRect(x: 0, y: 0, width: 18, height: 18),
+            from: .zero,
+            operation: .sourceOver,
+            fraction: 1
         )
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
     }
 
     private static func makeStatusImage(pet: PetDefinition, skin: PetSkinDefinition) -> NSImage {
@@ -663,6 +787,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             let catImage: NSImage? = switch skin.id {
             case "cat.grayTabby": CatPetAsset.grayTabbyImage
             case "cat.calico": CatPetAsset.calicoImage
+            case "cat.black": CatPetAsset.blackImage
+            case "cat.siamese": CatPetAsset.siameseImage
             default: CatPetAsset.image
             }
             catImage?.draw(
