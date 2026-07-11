@@ -10,14 +10,19 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
     private var activeSharingService: NSSharingService?
     private var aboutWindowController: AboutWindowController?
     private var petCustomizationWindowController: PetCustomizationWindowController?
+    private var shortcutSettingsWindowController: ShortcutSettingsWindowController?
     private var statusItemController: StatusItemController?
+    private var globalShortcutController: GlobalShortcutController?
     private var ageStore: PetAgeStore?
     private var progressStore: PetProgressStore?
+    private var hungerStore: PetHungerStore?
     private var customizationStore: PetCustomizationStore?
     private var featureEntitlementStore: FeatureEntitlementStore?
     private let feedSettings = FeedSettings()
     private let languageSettings = LanguageSettings()
     private let appearanceSettings = PetAppearanceSettings()
+    private let shortcutSettings = ShortcutSettings()
+    private let launchAtLoginController = LaunchAtLoginController()
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -39,6 +44,9 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
         progressStore.start { [weak ageStore] in
             ageStore?.totalRuntime ?? 0
         }
+        let hungerStore = PetHungerStore()
+        self.hungerStore = hungerStore
+        hungerStore.start()
         let customizationStore = PetCustomizationStore()
         self.customizationStore = customizationStore
         let featureEntitlementStore = FeatureEntitlementStore()
@@ -52,6 +60,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
         let contentView = PetView(
             state: petState,
             motionState: motionState,
+            hungerStore: hungerStore,
             appearanceSettings: appearanceSettings,
             customizationStore: customizationStore,
             languageSettings: languageSettings
@@ -95,10 +104,10 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
 
         let physicsController = PetPhysicsController(window: window, motionState: motionState)
         physicsController.isMouseGazeEnabled = { [weak petState] in
-            petState?.allowsMouseGaze == true
+            petState?.allowsMouseGaze == true && !hungerStore.isHungry
         }
         physicsController.onClick = { [petState] in
-            petState.reactToClick()
+            petState.reactToClick(isHungry: hungerStore.isHungry)
         }
         physicsController.onGrab = { [petState] in
             petState.reactToGrab()
@@ -129,22 +138,48 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             languageSettings: languageSettings
         )
         self.petCustomizationWindowController = petCustomizationWindowController
+        let shortcutSettingsWindowController = ShortcutSettingsWindowController(
+            shortcutSettings: shortcutSettings,
+            languageSettings: languageSettings
+        )
+        self.shortcutSettingsWindowController = shortcutSettingsWindowController
 
-        statusItemController = StatusItemController(
+        let statusItemController = StatusItemController(
             feedSettings: feedSettings,
             languageSettings: languageSettings,
             ageStore: ageStore,
             progressStore: progressStore,
+            hungerStore: hungerStore,
             appearanceSettings: appearanceSettings,
             customizationStore: customizationStore,
             featureEntitlementStore: featureEntitlementStore,
+            shortcutSettings: shortcutSettings,
+            launchAtLoginController: launchAtLoginController,
             onShowAbout: { [weak aboutWindowController] in
                 aboutWindowController?.show()
             },
             onShowPetCustomization: { [weak petCustomizationWindowController] in
                 petCustomizationWindowController?.show()
             },
+            onShowShortcutSettings: { [weak shortcutSettingsWindowController] in
+                shortcutSettingsWindowController?.show()
+            },
             onQuit: { NSApp.terminate(nil) }
+        )
+        self.statusItemController = statusItemController
+
+        window.onRightClick = { [weak statusItemController] _ in
+            statusItemController?.showPetContextMenu(at: NSEvent.mouseLocation)
+        }
+        physicsController.onRightClick = { [weak statusItemController] _ in
+            statusItemController?.showPetContextMenu(at: NSEvent.mouseLocation)
+        }
+
+        globalShortcutController = GlobalShortcutController(
+            settings: shortcutSettings,
+            onShortcut: { [weak statusItemController] in
+                statusItemController?.showMenuFromShortcut()
+            }
         )
     }
 
@@ -160,6 +195,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             progressStore?.synchronizeRuntime(ageStore.totalRuntime)
         }
         progressStore?.stop()
+        hungerStore?.stop()
     }
 
     @MainActor
@@ -190,6 +226,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
         var regularURLs: [URL] = []
         var didConsumeFood = false
         var gainedExperience = 0
+        var gainedSatiety = 0
 
         for url in urls {
             guard DesktopFoodFile.isFoodFile(url) else {
@@ -208,11 +245,17 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
 
             DesktopFoodFile.remove(url)
             didConsumeFood = true
-            gainedExperience += ShopCatalog.food(id: payload.foodID)?.experience ?? 0
+            if let food = ShopCatalog.food(id: payload.foodID) {
+                gainedExperience += food.experience
+                gainedSatiety += hungerStore?.feed(food) ?? 0
+            }
         }
 
         if gainedExperience > 0 {
             petMotionState?.showExperienceGain(gainedExperience)
+        }
+        if gainedSatiety > 0 {
+            petMotionState?.showSatietyGain(gainedSatiety)
         }
 
         guard !regularURLs.isEmpty else { return didConsumeFood }

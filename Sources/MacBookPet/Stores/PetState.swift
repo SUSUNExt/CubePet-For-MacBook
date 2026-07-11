@@ -30,7 +30,9 @@ final class PetState: ObservableObject {
         scheduleIdleCycle()
     }
 
-    func reactToClick() {
+    func reactToClick(isHungry: Bool = false) {
+        guard !isHungry else { return }
+
         expressionResetTask?.cancel()
         landingRecoveryTask?.cancel()
         scheduleIdleCycle()

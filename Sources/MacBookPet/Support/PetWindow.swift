@@ -2,6 +2,7 @@ import AppKit
 
 final class PetWindow: NSWindow {
     var physicsController: PetPhysicsController?
+    var onRightClick: ((CGRect) -> Void)?
 
     init(contentRect: NSRect) {
         super.init(
@@ -42,10 +43,30 @@ final class PetWindow: NSWindow {
         case .leftMouseUp:
             if physicsController?.isUsingInputEventTap == true { break }
             physicsController?.endDrag(with: event)
+        case .rightMouseDown:
+            guard bodyInteractionBoundsInWindow.contains(event.locationInWindow) else { break }
+            onRightClick?(bodyFrameInScreen)
+            return
         default:
             break
         }
 
         super.sendEvent(event)
+    }
+
+    private var bodyFrameInScreen: CGRect {
+        CGRect(
+            x: frame.minX + PetMetrics.bodyInsetX,
+            y: frame.minY + PetMetrics.bodyInsetY,
+            width: PetMetrics.bodySize,
+            height: PetMetrics.bodySize
+        )
+    }
+
+    private var bodyInteractionBoundsInWindow: CGRect {
+        PetMetrics.bodyBoundsInWindow.insetBy(
+            dx: -PetMetrics.fileDropMargin,
+            dy: -PetMetrics.fileDropMargin
+        )
     }
 }

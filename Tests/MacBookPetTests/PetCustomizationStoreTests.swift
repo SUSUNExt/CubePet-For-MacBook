@@ -140,6 +140,10 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(scared.scale, 0.743798828125)
         XCTAssertEqual(scared.spacing, -0.1447265625000007)
         XCTAssertEqual(sleeping.spacing, -2.8)
+        XCTAssertEqual(
+            configuration.configuration(for: .sleeping).baseOffset,
+            NormalizedVisualOffset(x: 0, y: 0.16666666666666657)
+        )
     }
 
     func testOrangeTabbyOfficialDefaultsMatchApprovedEditorPlacement() throws {
@@ -149,6 +153,7 @@ final class PetCustomizationStoreTests: XCTestCase {
         let scared = try XCTUnwrap(configuration.configuration(for: .scared).eyes)
         let sleeping = try XCTUnwrap(configuration.configuration(for: .sleeping).eyes)
         let eating = try XCTUnwrap(configuration.configuration(for: .eating).eyes)
+        let hungry = try XCTUnwrap(configuration.configuration(for: .hungry).eyes)
 
         XCTAssertEqual(normal.center.x, 0.49242424242424243)
         XCTAssertEqual(normal.center.y, 0.3181818181818182)
@@ -162,7 +167,70 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(scared.spacing, -0.8755974264705877)
         XCTAssertEqual(scared.resolvedColorMode, .black)
         XCTAssertEqual(sleeping.kind, .sleeping)
+        XCTAssertEqual(
+            configuration.configuration(for: .sleeping).baseOffset,
+            NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
+        )
         XCTAssertEqual(eating.kind, .eating)
+        XCTAssertEqual(hungry.kind, .hungry)
+    }
+
+    func testGrayTabbyOfficialDefaultsMatchApprovedEditorPlacement() throws {
+        let configuration = PetVisualDefaults.cat(skinID: "cat.grayTabby")
+        let normal = try XCTUnwrap(configuration.configuration(for: .normal).eyes)
+        let happy = try XCTUnwrap(configuration.configuration(for: .happy).eyes)
+        let scared = try XCTUnwrap(configuration.configuration(for: .scared).eyes)
+        let sleeping = try XCTUnwrap(configuration.configuration(for: .sleeping).eyes)
+        let eating = try XCTUnwrap(configuration.configuration(for: .eating).eyes)
+        let hungry = try XCTUnwrap(configuration.configuration(for: .hungry).eyes)
+
+        XCTAssertEqual(normal.center.x, 0.46894728535353536)
+        XCTAssertEqual(normal.center.y, 0.19986979166666666)
+        XCTAssertEqual(normal.spacing, -1.972794117647057)
+        XCTAssertEqual(normal.resolvedPupilScale, 0.677734375)
+        XCTAssertEqual(happy.center.x, 0.4727272727272727)
+        XCTAssertEqual(happy.center.y, 0.2393939393939394)
+        XCTAssertEqual(happy.spacing, -2.8)
+        XCTAssertEqual(scared.center.x, 0.46888809974747475)
+        XCTAssertEqual(scared.center.y, 0.22492503156565657)
+        XCTAssertEqual(scared.scale, 0.7711827895220588)
+        XCTAssertEqual(scared.spacing, 0.3169577205882348)
+        XCTAssertEqual(sleeping.kind, .sleeping)
+        XCTAssertEqual(
+            configuration.configuration(for: .sleeping).baseOffset,
+            NormalizedVisualOffset(x: 0, y: 0.06060606060606061)
+        )
+        XCTAssertEqual(eating.kind, .eating)
+        XCTAssertEqual(hungry.kind, .hungry)
+    }
+
+    func testCalicoAndBlackOfficialDefaultsUseApprovedLayouts() throws {
+        let calico = PetVisualDefaults.cat(skinID: "cat.calico")
+        let calicoNormal = try XCTUnwrap(calico.configuration(for: .normal).eyes)
+        let calicoEating = try XCTUnwrap(calico.configuration(for: .eating).eyes)
+
+        XCTAssertEqual(calicoNormal.center.x, 0.4424715909090909)
+        XCTAssertEqual(calicoNormal.center.y, 0.27434501262626265)
+        XCTAssertEqual(calicoNormal.resolvedPupilScale, 0.6925551470588235)
+        XCTAssertEqual(calicoEating.resolvedOuterEyeScale, 0.917580997242647)
+        XCTAssertEqual(calicoEating.resolvedPupilScale, 0.641802619485294)
+        XCTAssertEqual(
+            calico.configuration(for: .sleeping).baseOffset,
+            NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
+        )
+
+        let black = PetVisualDefaults.cat(skinID: "cat.black")
+        let blackHappy = try XCTUnwrap(black.configuration(for: .happy).eyes)
+        let blackScared = try XCTUnwrap(black.configuration(for: .scared).eyes)
+
+        XCTAssertEqual(blackHappy.scale, 0.8814338235294117)
+        XCTAssertEqual(blackHappy.spacing, -1.2708180147058812)
+        XCTAssertEqual(blackScared.scale, 0.6742446001838235)
+        XCTAssertEqual(blackScared.spacing, 0.5226102941176496)
+        XCTAssertEqual(
+            black.configuration(for: .sleeping).baseOffset,
+            NormalizedVisualOffset(x: 0, y: 0.20454545454545442)
+        )
     }
 
     func testScaredExpressionUsesDedicatedVisualStateAndOfficialEyes() throws {
@@ -175,6 +243,62 @@ final class PetCustomizationStoreTests: XCTestCase {
         let styles = scaredEyes.eyeStyles(for: .calm)
         XCTAssertEqual(styles.left, .chevronRight)
         XCTAssertEqual(styles.right, .chevronLeft)
+    }
+
+    @MainActor
+    func testHungryPetDoesNotBecomeHappyWhenClicked() {
+        let state = PetState()
+
+        state.reactToClick(isHungry: true)
+        XCTAssertEqual(state.expression, .calm)
+
+        state.reactToClick(isHungry: false)
+        XCTAssertEqual(state.expression, .happy)
+    }
+
+    func testEatingVisualExpressionOverridesHungryExpression() {
+        XCTAssertEqual(
+            PetView.visualExpression(base: .calm, isHungry: true, isEating: false),
+            .hungry
+        )
+        XCTAssertEqual(
+            PetView.visualExpression(base: .calm, isHungry: true, isEating: true),
+            .calm
+        )
+    }
+
+    func testFoodSatietyIncreasesWithPrice() {
+        XCTAssertEqual(ShopCatalog.food(id: "food.smallCookie")?.satiety, 18)
+        XCTAssertEqual(ShopCatalog.food(id: "food.energyBar")?.satiety, 38)
+        XCTAssertEqual(ShopCatalog.food(id: "food.nutritionCan")?.satiety, 75)
+        XCTAssertTrue(zip(ShopCatalog.foods, ShopCatalog.foods.dropFirst()).allSatisfy { cheaper, pricier in
+            cheaper.price < pricier.price && cheaper.satiety < pricier.satiety
+        })
+    }
+
+    @MainActor
+    func testHungerStoreDecaysAndFeedsSatiety() {
+        let suiteName = "PetHungerStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let start = Date(timeIntervalSinceReferenceDate: 10_000)
+        let store = PetHungerStore(defaults: defaults, now: start)
+        XCTAssertEqual(store.satiety, 100)
+        XCTAssertFalse(store.isHungry)
+
+        store.refresh(now: start.addingTimeInterval(10 * 3_600))
+        XCTAssertEqual(store.satiety, 20)
+        XCTAssertTrue(store.isHungry)
+
+        let gained = store.feed(ShopCatalog.foods[1], now: start.addingTimeInterval(10 * 3_600 + 60))
+        XCTAssertEqual(gained, 38)
+        XCTAssertEqual(store.satiety, 58)
+        XCTAssertFalse(store.isHungry)
+
+        let cappedGain = store.feed(ShopCatalog.foods[2], now: start.addingTimeInterval(10 * 3_600 + 120))
+        XCTAssertEqual(cappedGain, 42)
+        XCTAssertEqual(store.satiety, 100)
     }
 
     @MainActor

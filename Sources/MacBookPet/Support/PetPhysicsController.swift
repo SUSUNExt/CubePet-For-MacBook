@@ -10,6 +10,8 @@ final class PetPhysicsController {
     private var timer: Timer?
     private var inputEventTap: CFMachPort?
     private var inputEventRunLoopSource: CFRunLoopSource?
+    private var localRightClickMonitor: Any?
+    private var globalRightClickMonitor: Any?
     private var lastStepTime = ProcessInfo.processInfo.systemUptime
     private var lastGazeUpdateTime = ProcessInfo.processInfo.systemUptime
 
@@ -29,6 +31,7 @@ final class PetPhysicsController {
     private var isTrackingInputTapDrag = false
 
     var onClick: (() -> Void)?
+    var onRightClick: ((CGRect) -> Void)?
     var onGrab: (() -> Void)?
     var onLand: (() -> Void)?
     var isMouseGazeEnabled: (() -> Bool)?
@@ -54,6 +57,7 @@ final class PetPhysicsController {
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
         startInputEventTap()
+        startRightClickEventMonitors()
     }
 
     func beginDrag(with event: NSEvent) {
@@ -208,6 +212,37 @@ final class PetPhysicsController {
 
         inputEventTap = tap
         inputEventRunLoopSource = source
+    }
+
+    private func startRightClickEventMonitors() {
+        guard localRightClickMonitor == nil, globalRightClickMonitor == nil else { return }
+
+        localRightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+            Task { @MainActor in
+                self?.handleRightClickEvent(event)
+            }
+            return event
+        }
+        globalRightClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+            Task { @MainActor in
+                self?.handleRightClickEvent(event)
+            }
+        }
+    }
+
+    private func handleRightClickEvent(_ event: NSEvent) {
+        guard let window else { return }
+        let mouse = screenPoint(for: event)
+        guard bodyInteractionFrame(for: window).contains(mouse) else { return }
+        onRightClick?(bodyFrame(for: window))
+    }
+
+    private func screenPoint(for event: NSEvent) -> CGPoint {
+        if let eventWindow = event.window {
+            return eventWindow.convertPoint(toScreen: event.locationInWindow)
+        }
+
+        return NSEvent.mouseLocation
     }
 
     private func appKitMouseLocation(from event: CGEvent) -> CGPoint {
@@ -421,8 +456,21 @@ final class PetPhysicsController {
         )
     }
 
+    private func bodyInteractionFrame(for window: NSWindow) -> CGRect {
+        bodyFrame(for: window).insetBy(
+            dx: -PetMetrics.fileDropMargin,
+            dy: -PetMetrics.fileDropMargin
+        )
+    }
+
     deinit {
         timer?.invalidate()
+        if let localRightClickMonitor {
+            NSEvent.removeMonitor(localRightClickMonitor)
+        }
+        if let globalRightClickMonitor {
+            NSEvent.removeMonitor(globalRightClickMonitor)
+        }
         if let inputEventRunLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), inputEventRunLoopSource, .commonModes)
         }

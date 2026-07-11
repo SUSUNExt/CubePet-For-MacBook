@@ -94,6 +94,7 @@ struct PetCustomizationEditorView: View {
                 Text(label(.scared)).tag(PetVisualState.scared)
                 Text(label(.sleeping)).tag(PetVisualState.sleeping)
                 Text(label(.eating)).tag(PetVisualState.eating)
+                Text(label(.hungry)).tag(PetVisualState.hungry)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -127,6 +128,7 @@ struct PetCustomizationEditorView: View {
                             Text(label(.scared)).tag(PetEyeModuleKind.scared)
                             Text(label(.sleeping)).tag(PetEyeModuleKind.sleeping)
                             Text(label(.eating)).tag(PetEyeModuleKind.eating)
+                            Text(label(.hungry)).tag(PetEyeModuleKind.hungry)
                         }
 
                         Picker(label(.eyeColor), selection: eyeColorBinding) {
@@ -415,6 +417,7 @@ struct PetCustomizationEditorView: View {
         case .scared: .scared
         case .sleeping: .sleeping
         case .eating: .calm
+        case .hungry: .hungry
         }
     }
 
@@ -516,6 +519,7 @@ struct PetCustomizationEditorView: View {
         case .scared: .scared
         case .sleeping: .sleeping
         case .eating: .eating
+        case .hungry: .hungry
         }
     }
 

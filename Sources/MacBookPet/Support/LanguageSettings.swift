@@ -23,6 +23,7 @@ enum AppText {
     case level
     case shop
     case food
+    case satiety
     case skins
     case pets
     case owned
@@ -53,6 +54,26 @@ enum AppText {
     case petCustomization
     case petCustomizationLocked
     case petCustomizationLockedMessage
+    case shortcutSettings
+}
+
+enum ShortcutSettingsText {
+    case description
+    case currentShortcut
+    case currentShortcutTooltip
+    case recordShortcut
+    case pressNewShortcut
+    case needsModifier
+    case restoreDefault
+    case cancel
+    case save
+}
+
+enum LaunchAtLoginText {
+    case title
+    case approvalRequiredTitle
+    case approvalRequiredMessage
+    case updateFailedTitle
 }
 
 enum PetCustomizationText {
@@ -61,6 +82,7 @@ enum PetCustomizationText {
     case scared
     case sleeping
     case eating
+    case hungry
     case showEyes
     case alignEyes
     case eyeStyle
@@ -130,6 +152,7 @@ final class LanguageSettings: ObservableObject {
         case (.english, .scared): "Scared"
         case (.english, .sleeping): "Sleeping"
         case (.english, .eating): "Eating"
+        case (.english, .hungry): "Hungry"
         case (.english, .showEyes): "Show eye module"
         case (.english, .alignEyes): "Align both eyes"
         case (.english, .eyeStyle): "Eye style"
@@ -166,6 +189,7 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .scared): "怖がる"
         case (.japanese, .sleeping): "睡眠"
         case (.japanese, .eating): "食べる"
+        case (.japanese, .hungry): "空腹"
         case (.japanese, .showEyes): "目のモジュールを表示"
         case (.japanese, .alignEyes): "両目を揃える"
         case (.japanese, .eyeStyle): "目のスタイル"
@@ -202,6 +226,7 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .scared): "무서움"
         case (.korean, .sleeping): "수면"
         case (.korean, .eating): "먹기"
+        case (.korean, .hungry): "배고픔"
         case (.korean, .showEyes): "눈 모듈 표시"
         case (.korean, .alignEyes): "두 눈 정렬"
         case (.korean, .eyeStyle): "눈 스타일"
@@ -238,6 +263,7 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .scared): "害怕"
         case (.simplifiedChinese, .sleeping): "睡着"
         case (.simplifiedChinese, .eating): "吃"
+        case (.simplifiedChinese, .hungry): "饥饿"
         case (.simplifiedChinese, .showEyes): "显示眼睛模块"
         case (.simplifiedChinese, .alignEyes): "双眼对齐"
         case (.simplifiedChinese, .eyeStyle): "眼睛样式"
@@ -274,6 +300,7 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .scared): "害怕"
         case (.traditionalChinese, .sleeping): "睡著"
         case (.traditionalChinese, .eating): "吃"
+        case (.traditionalChinese, .hungry): "飢餓"
         case (.traditionalChinese, .showEyes): "顯示眼睛模組"
         case (.traditionalChinese, .alignEyes): "雙眼對齊"
         case (.traditionalChinese, .eyeStyle): "眼睛樣式"
@@ -308,6 +335,56 @@ final class LanguageSettings: ObservableObject {
         }
     }
 
+    func shortcutText(_ key: ShortcutSettingsText) -> String {
+        switch (language, key) {
+        case (.english, .description): "Use a global shortcut to open the CubePet menu when the menu bar icon is hidden or hard to reach."
+        case (.english, .currentShortcut): "Current shortcut"
+        case (.english, .currentShortcutTooltip): "Current shortcut: %@"
+        case (.english, .recordShortcut): "Click to change"
+        case (.english, .pressNewShortcut): "Press a new shortcut"
+        case (.english, .needsModifier): "Press a normal key together with Control, Option, Command, or Shift."
+        case (.english, .restoreDefault): "Restore Default"
+        case (.english, .cancel): "Cancel"
+        case (.english, .save): "Save"
+        case (.japanese, .description): "メニューバーアイコンが隠れている、または押しにくい場合に、グローバルショートカットでCubePetメニューを開きます。"
+        case (.japanese, .currentShortcut): "現在のショートカット"
+        case (.japanese, .currentShortcutTooltip): "現在のショートカット: %@"
+        case (.japanese, .recordShortcut): "クリックして変更"
+        case (.japanese, .pressNewShortcut): "新しいショートカットを押してください"
+        case (.japanese, .needsModifier): "Control、Option、Command、Shiftのいずれかと通常キーを同時に押してください。"
+        case (.japanese, .restoreDefault): "デフォルトに戻す"
+        case (.japanese, .cancel): "キャンセル"
+        case (.japanese, .save): "保存"
+        case (.korean, .description): "메뉴 막대 아이콘이 숨겨졌거나 누르기 어려울 때 전역 단축키로 CubePet 메뉴를 엽니다."
+        case (.korean, .currentShortcut): "현재 단축키"
+        case (.korean, .currentShortcutTooltip): "현재 단축키: %@"
+        case (.korean, .recordShortcut): "클릭하여 변경"
+        case (.korean, .pressNewShortcut): "새 단축키를 누르세요"
+        case (.korean, .needsModifier): "Control, Option, Command, Shift 중 하나와 일반 키를 함께 누르세요."
+        case (.korean, .restoreDefault): "기본값 복원"
+        case (.korean, .cancel): "취소"
+        case (.korean, .save): "저장"
+        case (.simplifiedChinese, .description): "当菜单栏图标被遮挡或不方便点击时，可以用全局快捷键打开 CubePet 菜单。"
+        case (.simplifiedChinese, .currentShortcut): "当前快捷键"
+        case (.simplifiedChinese, .currentShortcutTooltip): "当前快捷键：%@"
+        case (.simplifiedChinese, .recordShortcut): "点击修改"
+        case (.simplifiedChinese, .pressNewShortcut): "请按下新的快捷键"
+        case (.simplifiedChinese, .needsModifier): "请同时按下普通按键和 Control、Option、Command 或 Shift。"
+        case (.simplifiedChinese, .restoreDefault): "恢复默认"
+        case (.simplifiedChinese, .cancel): "取消"
+        case (.simplifiedChinese, .save): "保存"
+        case (.traditionalChinese, .description): "當選單列圖示被遮擋或不方便點擊時，可以用全域快速鍵開啟 CubePet 選單。"
+        case (.traditionalChinese, .currentShortcut): "目前快速鍵"
+        case (.traditionalChinese, .currentShortcutTooltip): "目前快速鍵：%@"
+        case (.traditionalChinese, .recordShortcut): "點擊修改"
+        case (.traditionalChinese, .pressNewShortcut): "請按下新的快速鍵"
+        case (.traditionalChinese, .needsModifier): "請同時按下普通按鍵和 Control、Option、Command 或 Shift。"
+        case (.traditionalChinese, .restoreDefault): "恢復預設"
+        case (.traditionalChinese, .cancel): "取消"
+        case (.traditionalChinese, .save): "儲存"
+        }
+    }
+
     func moveToFolderTitle(folderName: String?) -> String {
         guard let folderName else { return text(.moveToFolder) }
         return "\(text(.moveToFolder)) (\(folderName))"
@@ -324,6 +401,16 @@ final class LanguageSettings: ObservableObject {
         case .korean: "경험치 +\(amount)"
         case .simplifiedChinese: "+\(amount) 经验"
         case .traditionalChinese: "+\(amount) 經驗"
+        }
+    }
+
+    func satietyGainText(_ amount: Int) -> String {
+        switch language {
+        case .english: "+\(amount) Satiety"
+        case .japanese: "満腹度 +\(amount)"
+        case .korean: "포만감 +\(amount)"
+        case .simplifiedChinese: "+\(amount) 饱腹"
+        case .traditionalChinese: "+\(amount) 飽腹"
         }
     }
 
@@ -443,6 +530,31 @@ final class LanguageSettings: ObservableObject {
         }
     }
 
+    func launchAtLoginText(_ key: LaunchAtLoginText) -> String {
+        switch (language, key) {
+        case (.english, .title): "Launch at Login"
+        case (.english, .approvalRequiredTitle): "Approve Launch at Login"
+        case (.english, .approvalRequiredMessage): "Allow CubePet in System Settings to finish enabling launch at login."
+        case (.english, .updateFailedTitle): "Could Not Update Launch at Login"
+        case (.japanese, .title): "ログイン時に起動"
+        case (.japanese, .approvalRequiredTitle): "ログイン時に起動を許可"
+        case (.japanese, .approvalRequiredMessage): "ログイン時に起動を有効にするには、システム設定でCubePetを許可してください。"
+        case (.japanese, .updateFailedTitle): "ログイン時に起動を更新できませんでした"
+        case (.korean, .title): "로그인 시 실행"
+        case (.korean, .approvalRequiredTitle): "로그인 시 실행 승인"
+        case (.korean, .approvalRequiredMessage): "로그인 시 실행을 완료하려면 시스템 설정에서 CubePet을 허용하세요."
+        case (.korean, .updateFailedTitle): "로그인 시 실행을 업데이트할 수 없음"
+        case (.simplifiedChinese, .title): "登陆自启"
+        case (.simplifiedChinese, .approvalRequiredTitle): "请允许开机登录自动启动"
+        case (.simplifiedChinese, .approvalRequiredMessage): "请在系统设置中允许 CubePet，以完成开机登录自动启动。"
+        case (.simplifiedChinese, .updateFailedTitle): "无法更新开机登录自动启动"
+        case (.traditionalChinese, .title): "登入時自動啟動"
+        case (.traditionalChinese, .approvalRequiredTitle): "請允許登入時自動啟動"
+        case (.traditionalChinese, .approvalRequiredMessage): "請在系統設定中允許 CubePet，以完成登入時自動啟動。"
+        case (.traditionalChinese, .updateFailedTitle): "無法更新登入時自動啟動"
+        }
+    }
+
     func editionTitle() -> String {
         switch language {
         case .english: "Free & Open Source Edition"
@@ -458,6 +570,7 @@ final class LanguageSettings: ObservableObject {
         case .level: "Lv."
         case .shop: "Shop"
         case .food: "Food"
+        case .satiety: "Satiety"
         case .skins: "Skins"
         case .pets: "Pets"
         case .owned: "Owned"
@@ -488,6 +601,7 @@ final class LanguageSettings: ObservableObject {
         case .petCustomization: "Pet Customization"
         case .petCustomizationLocked: "Pet Customization Is Locked"
         case .petCustomizationLockedMessage: "Unlock this feature to create custom pets, import state images, and arrange visual modules."
+        case .shortcutSettings: "Shortcut Settings"
         }
     }
 
@@ -496,6 +610,7 @@ final class LanguageSettings: ObservableObject {
         case .level: "Lv."
         case .shop: "ショップ"
         case .food: "食べ物"
+        case .satiety: "満腹度"
         case .skins: "スキン"
         case .pets: "ペット"
         case .owned: "購入済み"
@@ -526,6 +641,7 @@ final class LanguageSettings: ObservableObject {
         case .petCustomization: "ペットのカスタマイズ"
         case .petCustomizationLocked: "ペットのカスタマイズはロックされています"
         case .petCustomizationLockedMessage: "ロックを解除すると、カスタムペットの作成、状態画像の読み込み、視覚モジュールの配置ができます。"
+        case .shortcutSettings: "ショートカット設定"
         }
     }
 
@@ -534,6 +650,7 @@ final class LanguageSettings: ObservableObject {
         case .level: "Lv."
         case .shop: "상점"
         case .food: "먹이"
+        case .satiety: "포만감"
         case .skins: "스킨"
         case .pets: "펫"
         case .owned: "보유"
@@ -564,6 +681,7 @@ final class LanguageSettings: ObservableObject {
         case .petCustomization: "펫 커스터마이징"
         case .petCustomizationLocked: "펫 커스터마이징이 잠겨 있습니다"
         case .petCustomizationLockedMessage: "잠금을 해제하면 커스텀 펫을 만들고 상태 이미지를 가져오며 시각 모듈을 배치할 수 있습니다."
+        case .shortcutSettings: "단축키 설정"
         }
     }
 
@@ -572,6 +690,7 @@ final class LanguageSettings: ObservableObject {
         case .level: "等级"
         case .shop: "商店"
         case .food: "食物"
+        case .satiety: "饱腹值"
         case .skins: "皮肤"
         case .pets: "宠物"
         case .owned: "已拥有"
@@ -602,6 +721,7 @@ final class LanguageSettings: ObservableObject {
         case .petCustomization: "宠物自定义"
         case .petCustomizationLocked: "宠物自定义尚未解锁"
         case .petCustomizationLockedMessage: "解锁后可以创建自定义宠物、导入状态图片并调整视觉模块。"
+        case .shortcutSettings: "快捷键设置"
         }
     }
 
@@ -610,6 +730,7 @@ final class LanguageSettings: ObservableObject {
         case .level: "等級"
         case .shop: "商店"
         case .food: "食物"
+        case .satiety: "飽腹值"
         case .skins: "皮膚"
         case .pets: "寵物"
         case .owned: "已擁有"
@@ -640,6 +761,7 @@ final class LanguageSettings: ObservableObject {
         case .petCustomization: "寵物自訂"
         case .petCustomizationLocked: "寵物自訂尚未解鎖"
         case .petCustomizationLockedMessage: "解鎖後可以建立自訂寵物、匯入狀態圖片並調整視覺模組。"
+        case .shortcutSettings: "快速鍵設定"
         }
     }
 }

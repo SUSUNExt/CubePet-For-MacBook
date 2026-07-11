@@ -5,13 +5,17 @@ import Combine
 final class StatusItemController: NSObject, NSMenuDelegate {
     private static let showsSystemInfoKey = "MacBookPet.showsSystemInfo"
     private static let fixedMenuWidth: CGFloat = 260
+    private static let petContextMenuWidth: CGFloat = 180
     private static let fixedMenuRowHeight: CGFloat = 22
+    private static let meterMenuRowHeight: CGFloat = 34
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let progressItem = NSMenuItem()
+    private let satietyItem = NSMenuItem()
     private let cpuItem = NSMenuItem()
     private let networkItem = NSMenuItem()
     private let progressRowView = FixedMenuStatusRowView(width: fixedMenuWidth, height: fixedMenuRowHeight)
+    private let satietyRowView = FixedMenuMeterRowView(width: fixedMenuWidth, height: meterMenuRowHeight)
     private let cpuMemoryRowView = FixedMenuStatusRowView(width: fixedMenuWidth, height: fixedMenuRowHeight)
     private let networkRowView = FixedMenuStatusRowView(
         width: fixedMenuWidth,
@@ -35,6 +39,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let feedItem = NSMenuItem()
     private let languageItem = NSMenuItem()
     private let showSystemInfoItem = NSMenuItem(title: "", action: #selector(toggleSystemInfo), keyEquivalent: "")
+    private let shortcutSettingsItem = NSMenuItem(
+        title: "",
+        action: #selector(showShortcutSettings),
+        keyEquivalent: ""
+    )
+    private let launchAtLoginItem = NSMenuItem(
+        title: "",
+        action: #selector(toggleLaunchAtLogin),
+        keyEquivalent: ""
+    )
     private let aboutItem = NSMenuItem(title: "", action: #selector(showAbout), keyEquivalent: "")
     private let exitItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
     private let moveToTrashItem = NSMenuItem(title: "", action: #selector(selectMoveToTrash), keyEquivalent: "")
@@ -44,12 +58,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let languageSettings: LanguageSettings
     private let ageStore: PetAgeStore
     private let progressStore: PetProgressStore
+    private let hungerStore: PetHungerStore
     private let appearanceSettings: PetAppearanceSettings
     private let customizationStore: PetCustomizationStore
     private let featureEntitlementStore: FeatureEntitlementStore
+    private let shortcutSettings: ShortcutSettings
+    private let launchAtLoginController: LaunchAtLoginController
     private let metricsMonitor = SystemMetricsMonitor()
     private let onShowAbout: () -> Void
     private let onShowPetCustomization: () -> Void
+    private let onShowShortcutSettings: () -> Void
     private let onQuit: () -> Void
     private var showsSystemInfo: Bool
     private var languageMenuItems: [AppLanguage: NSMenuItem] = [:]
@@ -59,6 +77,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var shopSkinMenuItems: [String: NSMenuItem] = [:]
     private var shopPetMenuItems: [String: NSMenuItem] = [:]
     private var latestMetrics = SystemMetricsSnapshot()
+    private var lastPetContextMenuOpenTime: TimeInterval = 0
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -66,22 +85,30 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         languageSettings: LanguageSettings,
         ageStore: PetAgeStore,
         progressStore: PetProgressStore,
+        hungerStore: PetHungerStore,
         appearanceSettings: PetAppearanceSettings,
         customizationStore: PetCustomizationStore,
         featureEntitlementStore: FeatureEntitlementStore,
+        shortcutSettings: ShortcutSettings,
+        launchAtLoginController: LaunchAtLoginController,
         onShowAbout: @escaping () -> Void,
         onShowPetCustomization: @escaping () -> Void,
+        onShowShortcutSettings: @escaping () -> Void,
         onQuit: @escaping () -> Void
     ) {
         self.feedSettings = feedSettings
         self.languageSettings = languageSettings
         self.ageStore = ageStore
         self.progressStore = progressStore
+        self.hungerStore = hungerStore
         self.appearanceSettings = appearanceSettings
         self.customizationStore = customizationStore
         self.featureEntitlementStore = featureEntitlementStore
+        self.shortcutSettings = shortcutSettings
+        self.launchAtLoginController = launchAtLoginController
         self.onShowAbout = onShowAbout
         self.onShowPetCustomization = onShowPetCustomization
+        self.onShowShortcutSettings = onShowShortcutSettings
         self.onQuit = onQuit
         self.showsSystemInfo = UserDefaults.standard.object(forKey: Self.showsSystemInfoKey) as? Bool ?? true
         super.init()
@@ -106,6 +133,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             guard let self else { return }
             self.updateProgressMenuState()
         }
+        hungerStore.onChange = { [weak self] in
+            guard let self else { return }
+            self.updateHungerMenuState()
+        }
+        shortcutSettings.$shortcut
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.updateShortcutSettingsMenuState()
+            }
+            .store(in: &cancellables)
         metricsMonitor.onUpdate = { [weak self] snapshot in
             guard let self else { return }
             self.latestMetrics = snapshot
@@ -134,6 +171,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         progressItem.view = progressRowView
         progressItem.isEnabled = false
         menu.addItem(progressItem)
+
+        satietyItem.view = satietyRowView
+        satietyItem.isEnabled = false
+        menu.addItem(satietyItem)
 
         menu.addItem(.separator())
 
@@ -185,18 +226,64 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         petItem.image = NSImage(systemSymbolName: "pawprint", accessibilityDescription: nil)
         settingItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         activityMonitorItem.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: nil)
+        showSystemInfoItem.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         aboutItem.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)
         exitItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
         progressStore.synchronizeRuntime(ageStore.totalRuntime)
+        hungerStore.refresh()
         updateLocalizedText()
     }
 
     func menuDidClose(_ menu: NSMenu) {
         updateMetricsMenuState()
         updateProgressMenuState()
+    }
+
+    func showMenuFromShortcut() {
+        guard let menu = statusItem.menu else { return }
+
+        updateLocalizedText()
+        statusItem.button?.highlight(true)
+        _ = menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        statusItem.button?.highlight(false)
+    }
+
+    func showPetContextMenu(at screenPoint: NSPoint) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastPetContextMenuOpenTime >= 0.08 else { return }
+        lastPetContextMenuOpenTime = now
+
+        progressStore.synchronizeRuntime(ageStore.totalRuntime)
+        hungerStore.refresh()
+        updateLocalizedText()
+
+        let menu = makePetContextMenu()
+        _ = menu.popUp(positioning: nil, at: screenPoint, in: nil)
+    }
+
+    func showFoodShopMenuFromActionPanel(at screenPoint: NSPoint) {
+        progressStore.synchronizeRuntime(ageStore.totalRuntime)
+        hungerStore.refresh()
+        updateLocalizedText()
+
+        guard let menu = shopFoodItem.submenu else { return }
+        _ = menu.popUp(positioning: nil, at: screenPoint, in: nil)
+    }
+
+    func showSettingsMenuFromActionPanel(at screenPoint: NSPoint) {
+        updateLocalizedText()
+
+        guard let menu = settingItem.submenu else { return }
+        _ = menu.popUp(positioning: nil, at: screenPoint, in: nil)
+    }
+
+    @objc private func showRootMenuFromPetContext() {
+        DispatchQueue.main.async { [weak self] in
+            self?.showMenuFromShortcut()
+        }
     }
 
     @objc private func openActivityMonitor() {
@@ -213,6 +300,29 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showAbout() {
         onShowAbout()
+    }
+
+    @objc private func showShortcutSettings() {
+        onShowShortcutSettings()
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            try launchAtLoginController.toggle()
+            updateLaunchAtLoginMenuState()
+
+            if launchAtLoginController.requiresApproval {
+                showLaunchAtLoginAlert(
+                    title: languageSettings.launchAtLoginText(.approvalRequiredTitle),
+                    message: languageSettings.launchAtLoginText(.approvalRequiredMessage)
+                )
+            }
+        } catch {
+            showLaunchAtLoginAlert(
+                title: languageSettings.launchAtLoginText(.updateFailedTitle),
+                message: error.localizedDescription
+            )
+        }
     }
 
     @objc private func openPetCustomization() {
@@ -482,6 +592,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(languageItem)
 
         menu.addItem(.separator())
+        shortcutSettingsItem.target = self
+        shortcutSettingsItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
+        menu.addItem(shortcutSettingsItem)
+
+        launchAtLoginItem.target = self
+        launchAtLoginItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
+        menu.addItem(launchAtLoginItem)
+
         showSystemInfoItem.target = self
         menu.addItem(showSystemInfoItem)
 
@@ -489,6 +607,144 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         updatePetMenuState()
         updateLanguageMenuState()
         updateSystemInfoVisibility()
+
+        return menu
+    }
+
+    private func makePetContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.minimumWidth = Self.petContextMenuWidth
+
+        let progressView = FixedMenuStatusRowView(width: Self.petContextMenuWidth, height: Self.fixedMenuRowHeight)
+        let level = progressStore.level(for: appearanceSettings.selectedPetID)
+        progressView.setText(
+            left: "\(languageSettings.text(.level)) \(level)",
+            right: "\(progressStore.coins)G"
+        )
+        let progressItem = NSMenuItem()
+        progressItem.view = progressView
+        progressItem.isEnabled = false
+        menu.addItem(progressItem)
+
+        let satietyView = FixedMenuMeterRowView(width: Self.petContextMenuWidth, height: Self.meterMenuRowHeight)
+        satietyView.setValue(
+            label: languageSettings.text(.satiety),
+            fraction: hungerStore.satietyFraction,
+            valueText: "\(hungerStore.satiety)%"
+        )
+        let satietyItem = NSMenuItem()
+        satietyItem.view = satietyView
+        satietyItem.isEnabled = false
+        menu.addItem(satietyItem)
+
+        menu.addItem(.separator())
+
+        let foodItem = NSMenuItem(title: "购买食物", action: nil, keyEquivalent: "")
+        foodItem.image = NSImage(
+            systemSymbolName: "takeoutbag.and.cup.and.straw",
+            accessibilityDescription: languageSettings.text(.food)
+        )
+        foodItem.submenu = makePetContextFoodMenu()
+        menu.addItem(foodItem)
+
+        let summonMenuItem = NSMenuItem(
+            title: "呼出菜单",
+            action: #selector(showRootMenuFromPetContext),
+            keyEquivalent: ""
+        )
+        summonMenuItem.target = self
+        summonMenuItem.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: nil)
+        menu.addItem(summonMenuItem)
+
+        return menu
+    }
+
+    private func makePetContextFoodMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        for food in ShopCatalog.foods {
+            let item = NSMenuItem(title: "", action: #selector(buyFood(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = food.id
+            item.attributedTitle = foodStoreTitle(food)
+            item.toolTip = foodDetailText(food)
+            item.isEnabled = progressStore.canAfford(food)
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    private func makePetContextSettingsMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        let feedMenu = NSMenu()
+        feedMenu.autoenablesItems = false
+
+        let trashItem = NSMenuItem(title: languageSettings.text(.moveToTrash), action: #selector(selectMoveToTrash), keyEquivalent: "")
+        trashItem.target = self
+        trashItem.state = feedSettings.destination == .trash ? .on : .off
+        feedMenu.addItem(trashItem)
+
+        let folderItem = NSMenuItem(
+            title: languageSettings.moveToFolderTitle(folderName: feedSettings.folderURL?.lastPathComponent),
+            action: #selector(selectMoveToFolder),
+            keyEquivalent: ""
+        )
+        folderItem.target = self
+        folderItem.state = feedSettings.destination == .folder ? .on : .off
+        folderItem.toolTip = feedSettings.folderURL?.path
+        feedMenu.addItem(folderItem)
+
+        let airDropItem = NSMenuItem(title: languageSettings.text(.airDrop), action: #selector(selectAirDrop), keyEquivalent: "")
+        airDropItem.target = self
+        airDropItem.state = feedSettings.destination == .airDrop ? .on : .off
+        feedMenu.addItem(airDropItem)
+
+        let feedRootItem = NSMenuItem(title: languageSettings.text(.eatAction), action: nil, keyEquivalent: "")
+        feedRootItem.submenu = feedMenu
+        menu.addItem(feedRootItem)
+
+        let languageMenu = NSMenu()
+        languageMenu.autoenablesItems = false
+        for language in AppLanguage.allCases {
+            let item = NSMenuItem(title: language.displayName, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = language.rawValue
+            item.state = languageSettings.language == language ? .on : .off
+            languageMenu.addItem(item)
+        }
+        let languageRootItem = NSMenuItem(title: languageSettings.text(.language), action: nil, keyEquivalent: "")
+        languageRootItem.submenu = languageMenu
+        menu.addItem(languageRootItem)
+
+        menu.addItem(.separator())
+
+        let shortcutItem = NSMenuItem(
+            title: languageSettings.text(.shortcutSettings),
+            action: #selector(showShortcutSettings),
+            keyEquivalent: ""
+        )
+        shortcutItem.target = self
+        shortcutItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
+        shortcutItem.toolTip = String(
+            format: languageSettings.shortcutText(.currentShortcutTooltip),
+            shortcutSettings.shortcut.displayString
+        )
+        menu.addItem(shortcutItem)
+
+        let systemInfoItem = NSMenuItem(
+            title: languageSettings.text(.showSystemInfo),
+            action: #selector(toggleSystemInfo),
+            keyEquivalent: ""
+        )
+        systemInfoItem.target = self
+        systemInfoItem.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
+        systemInfoItem.state = showsSystemInfo ? .on : .off
+        menu.addItem(systemInfoItem)
 
         return menu
     }
@@ -539,9 +795,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         feedItem.title = languageSettings.text(.eatAction)
         languageItem.title = languageSettings.text(.language)
         showSystemInfoItem.title = languageSettings.text(.showSystemInfo)
+        updateShortcutSettingsMenuState()
+        updateLaunchAtLoginMenuState()
         exitItem.title = languageSettings.text(.exit)
         updateMetricsMenuState()
         updateProgressTitle()
+        updateHungerMenuState()
         updateFeedMenuState()
         updatePetMenuState()
         updateSkinMenuState()
@@ -633,10 +892,19 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
     }
 
+    private func updateHungerMenuState() {
+        satietyRowView.setValue(
+            label: languageSettings.text(.satiety),
+            fraction: hungerStore.satietyFraction,
+            valueText: "\(hungerStore.satiety)%"
+        )
+    }
+
     private func updateShopMenuState() {
         for food in ShopCatalog.foods {
             guard let item = shopFoodMenuItems[food.id] else { continue }
             item.attributedTitle = foodStoreTitle(food)
+            item.toolTip = foodDetailText(food)
             item.isEnabled = progressStore.coins >= food.price
         }
 
@@ -665,7 +933,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         paragraphStyle.tabStops = [NSTextTab(textAlignment: .right, location: foodPriceTabLocation(font: font))]
 
         return NSAttributedString(
-            string: "\(languageSettings.foodName(food.name))\t\(food.price)G",
+            string: "\(languageSettings.foodName(food.name)) +\(food.satiety)\t\(food.price)G",
             attributes: [
                 .font: font,
                 .paragraphStyle: paragraphStyle
@@ -673,10 +941,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
     }
 
+    private func foodDetailText(_ food: FoodDefinition) -> String {
+        "\(languageSettings.satietyGainText(food.satiety)) · \(languageSettings.experienceGainText(food.experience))"
+    }
+
     private func foodPriceTabLocation(font: NSFont) -> CGFloat {
         let attributes: [NSAttributedString.Key: Any] = [.font: font]
         let longestName = ShopCatalog.foods
-            .map { (languageSettings.foodName($0.name) as NSString).size(withAttributes: attributes).width }
+            .map { ("\(languageSettings.foodName($0.name)) +\($0.satiety)" as NSString).size(withAttributes: attributes).width }
             .max() ?? 0
         let widestPrice = ShopCatalog.foods
             .map { ("\($0.price)G" as NSString).size(withAttributes: attributes).width }
@@ -701,6 +973,29 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         networkItem.isHidden = !showsSystemInfo
         metricsBottomSeparator.isHidden = !showsSystemInfo
         showSystemInfoItem.state = showsSystemInfo ? .on : .off
+    }
+
+    private func updateShortcutSettingsMenuState() {
+        let displayString = shortcutSettings.shortcut.displayString
+        shortcutSettingsItem.title = languageSettings.text(.shortcutSettings)
+        shortcutSettingsItem.toolTip = String(
+            format: languageSettings.shortcutText(.currentShortcutTooltip),
+            displayString
+        )
+    }
+
+    private func updateLaunchAtLoginMenuState() {
+        launchAtLoginItem.title = languageSettings.launchAtLoginText(.title)
+        launchAtLoginItem.state = launchAtLoginController.isEnabled ? .on : .off
+    }
+
+    private func showLaunchAtLoginAlert(title: String, message: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: languageSettings.text(.ok))
+        alert.runModal()
     }
 
     private func percentage(_ value: Double) -> String {
@@ -889,5 +1184,77 @@ private final class FixedMenuStatusRowView: NSView {
     func setText(left: String, right: String) {
         leftLabel.stringValue = left
         rightLabel.stringValue = right
+    }
+}
+
+private final class FixedMenuMeterRowView: NSView {
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let valueLabel = NSTextField(labelWithString: "")
+    private let progressIndicator = NSProgressIndicator()
+    private let horizontalInset: CGFloat = 16
+    private let labelHeight: CGFloat = 15
+
+    init(width: CGFloat, height: CGFloat) {
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
+
+        for label in [titleLabel, valueLabel] {
+            label.font = .menuFont(ofSize: 0)
+            label.textColor = .labelColor
+            label.lineBreakMode = .byTruncatingTail
+            label.maximumNumberOfLines = 1
+            label.cell?.usesSingleLineMode = true
+            label.cell?.truncatesLastVisibleLine = true
+            addSubview(label)
+        }
+
+        valueLabel.alignment = .right
+        progressIndicator.isIndeterminate = false
+        progressIndicator.minValue = 0
+        progressIndicator.maxValue = 1
+        progressIndicator.doubleValue = 1
+        progressIndicator.style = .bar
+        progressIndicator.controlSize = .small
+        addSubview(progressIndicator)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var intrinsicContentSize: NSSize {
+        frame.size
+    }
+
+    override func layout() {
+        super.layout()
+
+        let contentWidth = max(0, bounds.width - horizontalInset * 2)
+        let valueWidth = min(52, max(42, contentWidth * 0.28))
+        let titleWidth = max(0, contentWidth - valueWidth - 8)
+        titleLabel.frame = NSRect(
+            x: horizontalInset,
+            y: bounds.height - labelHeight - 3,
+            width: titleWidth,
+            height: labelHeight
+        )
+        valueLabel.frame = NSRect(
+            x: horizontalInset + titleWidth + 8,
+            y: bounds.height - labelHeight - 3,
+            width: valueWidth,
+            height: labelHeight
+        )
+        progressIndicator.frame = NSRect(
+            x: horizontalInset,
+            y: 6,
+            width: contentWidth,
+            height: 8
+        )
+    }
+
+    func setValue(label: String, fraction: Double, valueText: String) {
+        titleLabel.stringValue = label
+        valueLabel.stringValue = valueText
+        progressIndicator.doubleValue = min(max(fraction, 0), 1)
     }
 }

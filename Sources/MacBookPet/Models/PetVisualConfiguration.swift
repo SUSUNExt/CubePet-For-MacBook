@@ -6,6 +6,7 @@ enum PetVisualState: String, CaseIterable, Codable {
     case scared
     case sleeping
     case eating
+    case hungry
 
     init(expression: PetExpression) {
         switch expression {
@@ -15,6 +16,8 @@ enum PetVisualState: String, CaseIterable, Codable {
             self = .scared
         case .sleeping:
             self = .sleeping
+        case .hungry:
+            self = .hungry
         default:
             self = .normal
         }
@@ -33,6 +36,7 @@ enum PetEyeModuleKind: String, CaseIterable, Codable {
     case scared
     case sleeping
     case eating
+    case hungry
 }
 
 enum PetEyeColorMode: String, CaseIterable, Codable {
@@ -131,6 +135,8 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
             return (.invertedSmile, .invertedSmile)
         case .eating:
             return (.sleepy, .sleepy)
+        case .hungry:
+            return (.annoyedRight, .annoyedLeft)
         }
     }
 
@@ -140,7 +146,7 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
             return expression.allowsMouseGaze
         case .tracking:
             return true
-        case .happy, .scared, .sleeping, .eating:
+        case .happy, .scared, .sleeping, .eating, .hungry:
             return false
         }
     }
@@ -149,7 +155,7 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
         switch kind {
         case .expressionDriven, .tracking:
             return true
-        case .happy, .scared, .sleeping, .eating:
+        case .happy, .scared, .sleeping, .eating, .hungry:
             return false
         }
     }
@@ -240,6 +246,10 @@ enum PetVisualDefaults {
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
                 eyes: PetEyeModuleConfiguration(kind: .eating)
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(kind: .hungry)
             )
         ]
     )
@@ -257,6 +267,12 @@ enum PetVisualDefaults {
         switch skinID {
         case "cat.classic":
             return orangeTabby
+        case "cat.grayTabby":
+            return grayTabby
+        case "cat.calico":
+            return calico
+        case "cat.black":
+            return black
         case "cat.siamese":
             return siamese
         default:
@@ -317,7 +333,8 @@ enum PetVisualDefaults {
                     ),
                     scale: 1,
                     spacing: -2.8
-                )
+                ),
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
             ),
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
@@ -328,6 +345,218 @@ enum PetVisualDefaults {
                         y: 0.3181818181818182
                     ),
                     scale: 1,
+                    spacing: -2.8
+                )
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .hungry,
+                    center: NormalizedVisualPoint(
+                        x: 0.49242424242424243,
+                        y: 0.3181818181818182
+                    ),
+                    scale: 1,
+                    spacing: -2.8
+                )
+            )
+        ]
+    )
+
+    // Promoted from the approved in-app layout so new users receive the
+    // complete greedy-cat expression set without a saved local override.
+    private static let grayTabby = PetVisualConfiguration(
+        states: [
+            .normal: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .expressionDriven,
+                    center: NormalizedVisualPoint(
+                        x: 0.46894728535353536,
+                        y: 0.19986979166666666
+                    ),
+                    scale: 1,
+                    spacing: -1.972794117647057,
+                    pupilScale: 0.677734375
+                )
+            ),
+            .happy: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .happy,
+                    center: NormalizedVisualPoint(
+                        x: 0.4727272727272727,
+                        y: 0.2393939393939394
+                    ),
+                    scale: 1,
+                    spacing: -2.8
+                )
+            ),
+            .scared: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .scared,
+                    center: NormalizedVisualPoint(
+                        x: 0.46888809974747475,
+                        y: 0.22492503156565657
+                    ),
+                    scale: 0.7711827895220588,
+                    spacing: 0.3169577205882348
+                )
+            ),
+            .sleeping: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .sleeping,
+                    center: NormalizedVisualPoint(
+                        x: 0.4727272727272727,
+                        y: 0.2393939393939394
+                    ),
+                    scale: 1,
+                    spacing: -2.8
+                ),
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.06060606060606061)
+            ),
+            .eating: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .eating,
+                    center: NormalizedVisualPoint(
+                        x: 0.4727272727272727,
+                        y: 0.2393939393939394
+                    ),
+                    scale: 1,
+                    spacing: -2.8
+                )
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .hungry,
+                    center: NormalizedVisualPoint(
+                        x: 0.4727272727272727,
+                        y: 0.2393939393939394
+                    ),
+                    scale: 1,
+                    spacing: -2.8
+                )
+            )
+        ]
+    )
+
+    // Promoted from the current approved editor layout so new users receive
+    // the complete calico expression set without a saved local override.
+    private static let calico = PetVisualConfiguration(
+        states: [
+            .normal: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .expressionDriven,
+                    center: NormalizedVisualPoint(x: 0.4424715909090909, y: 0.27434501262626265),
+                    spacing: -2.8,
+                    pupilScale: 0.6925551470588235
+                )
+            ),
+            .happy: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .happy,
+                    center: NormalizedVisualPoint(x: 0.44566761363636365, y: 0.28963462752525254),
+                    spacing: -2.8
+                )
+            ),
+            .scared: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .scared,
+                    center: NormalizedVisualPoint(x: 0.4424715909090909, y: 0.2913510101010101),
+                    scale: 0.7367589613970588,
+                    spacing: 1.388878676470588
+                )
+            ),
+            .sleeping: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .sleeping,
+                    center: NormalizedVisualPoint(x: 0.5726996527777778, y: 0.6857244318181818),
+                    spacing: -2.8
+                ),
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
+            ),
+            .eating: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .eating,
+                    center: NormalizedVisualPoint(x: 0.4514875315656566, y: 0.3271977588383838),
+                    spacing: -2.8,
+                    outerEyeScale: 0.917580997242647,
+                    pupilScale: 0.641802619485294
+                )
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .hungry,
+                    center: NormalizedVisualPoint(x: 0.4348484848484848, y: 0.2878787878787879),
+                    spacing: -2.8
+                )
+            )
+        ]
+    )
+
+    // Promoted from the current approved editor layout so new users receive
+    // the complete black-cat expression set without a saved local override.
+    private static let black = PetVisualConfiguration(
+        states: [
+            .normal: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .expressionDriven,
+                    center: NormalizedVisualPoint(x: 0.46705334595959597, y: 0.2916074810606061),
+                    spacing: -2.8
+                )
+            ),
+            .happy: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .happy,
+                    center: NormalizedVisualPoint(x: 0.4644689078282828, y: 0.30567392676767674),
+                    scale: 0.8814338235294117,
+                    spacing: -1.2708180147058812
+                )
+            ),
+            .scared: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .scared,
+                    center: NormalizedVisualPoint(x: 0.46519886363636365, y: 0.3057528409090909),
+                    scale: 0.6742446001838235,
+                    spacing: 0.5226102941176496
+                )
+            ),
+            .sleeping: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .sleeping,
+                    center: NormalizedVisualPoint(x: 0.47149226641414144, y: 0.29987373737373735),
+                    scale: 0.7970329733455882,
+                    spacing: 0.09866727941176556
+                ),
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.20454545454545442)
+            ),
+            .eating: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .eating,
+                    center: NormalizedVisualPoint(x: 0.4696969696969697, y: 0.29545454545454547),
+                    spacing: -2.8
+                )
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .hungry,
+                    center: NormalizedVisualPoint(x: 0.4696969696969697, y: 0.29545454545454547),
                     spacing: -2.8
                 )
             )
@@ -381,12 +610,24 @@ enum PetVisualDefaults {
                         y: 0.3385022095959596
                     ),
                     spacing: -2.8
-                )
+                ),
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.16666666666666657)
             ),
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
                 eyes: PetEyeModuleConfiguration(
                     kind: .eating,
+                    center: NormalizedVisualPoint(
+                        x: 0.43367266414141414,
+                        y: 0.3266256313131313
+                    ),
+                    spacing: -2.8
+                )
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .hungry,
                     center: NormalizedVisualPoint(
                         x: 0.43367266414141414,
                         y: 0.3266256313131313
@@ -412,6 +653,9 @@ enum PetVisualDefaults {
         var eatingEyes = eyeLayout
         eatingEyes.kind = .eating
 
+        var hungryEyes = eyeLayout
+        hungryEyes.kind = .hungry
+
         return PetVisualConfiguration(
             states: [
                 .normal: PetStateVisualConfiguration(
@@ -433,6 +677,10 @@ enum PetVisualDefaults {
                 .eating: PetStateVisualConfiguration(
                     base: .officialSkin,
                     eyes: eatingEyes
+                ),
+                .hungry: PetStateVisualConfiguration(
+                    base: .officialSkin,
+                    eyes: hungryEyes
                 )
             ]
         )

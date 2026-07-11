@@ -6,6 +6,11 @@ struct ExperienceGainEffect: Identifiable, Equatable {
     let amount: Int
 }
 
+struct SatietyGainEffect: Identifiable, Equatable {
+    let id = UUID()
+    let amount: Int
+}
+
 @MainActor
 final class PetMotionState: ObservableObject {
     @Published var rotationDegrees: CGFloat = 0
@@ -15,8 +20,10 @@ final class PetMotionState: ObservableObject {
     @Published var feedMouthOpen: CGFloat = 0
     @Published var isGrabbed = false
     @Published private(set) var experienceGainEffect: ExperienceGainEffect?
+    @Published private(set) var satietyGainEffect: SatietyGainEffect?
 
     private var experienceGainTask: Task<Void, Never>?
+    private var satietyGainTask: Task<Void, Never>?
 
     func showExperienceGain(_ amount: Int) {
         guard amount > 0 else { return }
@@ -32,6 +39,23 @@ final class PetMotionState: ObservableObject {
             try? await Task.sleep(nanoseconds: 1_250_000_000)
             guard !Task.isCancelled, self?.experienceGainEffect?.id == effect.id else { return }
             self?.experienceGainEffect = nil
+        }
+    }
+
+    func showSatietyGain(_ amount: Int) {
+        guard amount > 0 else { return }
+
+        satietyGainTask?.cancel()
+        satietyGainTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            guard !Task.isCancelled else { return }
+
+            let effect = SatietyGainEffect(amount: amount)
+            self?.satietyGainEffect = effect
+
+            try? await Task.sleep(nanoseconds: 1_250_000_000)
+            guard !Task.isCancelled, self?.satietyGainEffect?.id == effect.id else { return }
+            self?.satietyGainEffect = nil
         }
     }
 

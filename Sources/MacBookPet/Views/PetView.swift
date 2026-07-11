@@ -3,6 +3,7 @@ import SwiftUI
 struct PetView: View {
     @ObservedObject var state: PetState
     @ObservedObject var motionState: PetMotionState
+    @ObservedObject var hungerStore: PetHungerStore
     @ObservedObject var appearanceSettings: PetAppearanceSettings
     @ObservedObject var customizationStore: PetCustomizationStore
     @ObservedObject var languageSettings: LanguageSettings
@@ -11,8 +12,9 @@ struct PetView: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let isSleeping = state.expression == .sleeping
-            let isListening = state.expression == .listening
+            let expression = visualExpression
+            let isSleeping = expression == .sleeping
+            let isListening = expression == .listening
             let breathScale = sleepingBreathScale(at: timeline.date, isSleeping: isSleeping)
             let listeningMotion = listeningMotion(at: timeline.date, isListening: isListening)
 
@@ -46,6 +48,18 @@ struct PetView: View {
                     )
                     .allowsHitTesting(false)
                 }
+
+                if let effect = motionState.satietyGainEffect {
+                    ExperienceGainView(
+                        text: languageSettings.satietyGainText(effect.amount)
+                    )
+                    .id(effect.id)
+                    .position(
+                        x: PetMetrics.bodyInsetX + PetMetrics.bodySize / 2,
+                        y: PetMetrics.canvasHeight - PetMetrics.bodyInsetY - PetMetrics.bodySize - 26
+                    )
+                    .allowsHitTesting(false)
+                }
             }
             .contentShape(Rectangle())
             .onChange(of: state.expression) { _, expression in
@@ -59,10 +73,11 @@ struct PetView: View {
 
     private func petBody(breathScale: CGFloat, listeningRotation: CGFloat) -> some View {
         let mouthOpen = motionState.feedMouthOpen
+        let expression = visualExpression
         let configuration = activeVisualConfiguration
         let visualState: PetVisualState = mouthOpen > 0.02
             ? .eating
-            : PetVisualState(expression: state.expression)
+            : PetVisualState(expression: expression)
         let stateConfiguration = configuration.configuration(
             for: visualState
         )
@@ -73,7 +88,7 @@ struct PetView: View {
                     imageURL: customizationStore.assetURL(for: assetID),
                     baseOffset: stateConfiguration.baseOffset,
                     configuration: stateConfiguration.eyes,
-                    expression: state.expression,
+                    expression: expression,
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset
                 )
@@ -82,7 +97,7 @@ struct PetView: View {
                     imageURL: nil,
                     baseOffset: stateConfiguration.baseOffset,
                     configuration: stateConfiguration.eyes,
-                    expression: state.expression,
+                    expression: expression,
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset
                 )
@@ -91,7 +106,7 @@ struct PetView: View {
             case .cube:
                 CubePetView(
                     color: Color(nsColor: appearanceSettings.selectedSkin.color),
-                    expression: state.expression,
+                    expression: expression,
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
@@ -99,7 +114,7 @@ struct PetView: View {
                 )
             case .frog:
                 FrogPetView(
-                    expression: state.expression,
+                    expression: expression,
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
@@ -107,7 +122,7 @@ struct PetView: View {
                 )
             case .cat:
                 CatPetView(
-                    expression: state.expression,
+                    expression: expression,
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
@@ -141,6 +156,25 @@ struct PetView: View {
             skinID: appearanceSettings.selectedSkinID,
             official: official
         )
+    }
+
+    private var visualExpression: PetExpression {
+        Self.visualExpression(
+            base: state.expression,
+            isHungry: hungerStore.isHungry,
+            isEating: motionState.feedMouthOpen > 0.02
+        )
+    }
+
+    static func visualExpression(
+        base expression: PetExpression,
+        isHungry: Bool,
+        isEating: Bool
+    ) -> PetExpression {
+        guard !isEating, isHungry, expression == .calm else {
+            return expression
+        }
+        return .hungry
     }
 
     private var groundAlignmentOffset: CGFloat {

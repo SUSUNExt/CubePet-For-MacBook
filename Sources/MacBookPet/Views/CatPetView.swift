@@ -4,13 +4,24 @@ import SwiftUI
 enum CatPetAsset {
     static let image = load(named: "CatPet")
     static let largeMouthImage = load(named: "CatPetMouthLarge")
+    static let curledSleepingImage = load(named: "CatPetCurledSleeping")
+    static let hungryImage = load(named: "CatPetHungry")
     static let grayTabbyImage = load(named: "CatPetGrayFaceless")
+    static let grayTabbyHungryImage = load(named: "CatPetGrayHungry")
+    static let grayTabbySleepingImage = load(named: "CatPetGraySleeping")
     static let grayTabbyLargeMouthImage = load(named: "CatPetGrayMouthLarge")
     static let calicoImage = load(named: "CatPetCalicoFaceless")
+    static let calicoSleepingImage = load(named: "CatPetCalicoSleeping")
+    static let calicoHungryImage = load(named: "CatPetCalicoHungry")
     static let calicoLargeMouthImage = load(named: "CatPetCalicoMouthLarge")
+    static let calicoMouthOnlyImage = load(named: "CatPetCalicoMouthOnly")
     static let blackImage = load(named: "CatPetBlackFaceless")
+    static let blackSleepingImage = load(named: "CatPetBlackSleeping")
+    static let blackHungryImage = load(named: "CatPetBlackHungry")
     static let blackLargeMouthImage = load(named: "CatPetBlackMouthLarge")
     static let siameseImage = load(named: "CatPetSiameseFaceless")
+    static let siameseSleepingImage = load(named: "CatPetSiameseSleeping")
+    static let siameseHungryImage = load(named: "CatPetSiameseHungry")
     static let siameseMouthImage = load(named: "CatPetSiameseMouthUnique")
 
     private static func load(named name: String) -> NSImage? {
@@ -93,14 +104,14 @@ struct CatPetView: View {
             }
             .offset(renderedBaseOffset)
 
-            if let eyeConfiguration, !(isEating && usesBakedEatingEyes) {
+            if let eyeConfiguration, !usesBakedEyes(isEating: isEating) {
                 CatEyePairView(
                     configuration: eyeConfiguration,
                     expression: expression,
                     isBlinking: isEating ? false : isBlinking,
                     gazeOffset: isEating ? .zero : gazeOffset,
                     additionalOffsetY: defaultEyeOffsetY,
-                    showsEyeWhites: isEating || showsEyeWhites,
+                    allowsEyeWhites: isEating || showsEyeWhites,
                     eyeBackgroundScale: eyeBackgroundScale
                         * defaultEyeScale
                         * CGFloat(eyeConfiguration.resolvedOuterEyeScale),
@@ -116,7 +127,7 @@ struct CatPetView: View {
         .offset(y: isGrayTabby ? 2 : 0)
         .scaleEffect(
             x: 1,
-            y: isEating && !isDefaultSkin && !isGrayTabby ? 1.06 : 1,
+            y: isEating && !isDefaultSkin && !isGrayTabby && !isCalico ? 1.06 : 1,
             anchor: .bottom
         )
     }
@@ -138,7 +149,15 @@ struct CatPetView: View {
     }
 
     private var usesBakedEatingEyes: Bool {
-        return isGrayTabby || isCalico || isBlack || isSiamese || isDefaultSkin
+        return isGrayTabby || isBlack || isSiamese || isDefaultSkin
+    }
+
+    private var usesBakedSleepingEyes: Bool {
+        (isDefaultSkin || isGrayTabby || isCalico || isBlack || isSiamese) && expression == .sleeping
+    }
+
+    private var usesBakedHungryEyes: Bool {
+        (isDefaultSkin || isGrayTabby || isCalico || isBlack || isSiamese) && expression == .hungry
     }
 
     private var isDefaultSkin: Bool {
@@ -152,11 +171,10 @@ struct CatPetView: View {
     }
 
     private var eyeConfiguration: PetEyeModuleConfiguration? {
-        guard var eyes = stateConfiguration.eyes else { return nil }
-        if mouthOpen > 0.02 {
-            eyes.kind = .eating
-        }
-        return eyes
+        // `stateConfiguration` already resolves the eating state while the
+        // mouth is open. Keep its selected kind intact so editor changes to
+        // the eating-state eye style are reflected on every cat skin.
+        stateConfiguration.eyes
     }
 
     private var renderedBaseOffset: CGSize {
@@ -170,16 +188,38 @@ struct CatPetView: View {
     private func catImage(isEating: Bool) -> NSImage? {
         if isEating {
             if isGrayTabby { return CatPetAsset.grayTabbyLargeMouthImage }
-            if isCalico { return CatPetAsset.calicoLargeMouthImage }
+            if isCalico { return CatPetAsset.calicoMouthOnlyImage }
             if isBlack { return CatPetAsset.blackLargeMouthImage }
             if isSiamese { return CatPetAsset.siameseMouthImage }
             return CatPetAsset.largeMouthImage
+        }
+        if usesBakedSleepingEyes {
+            if isGrayTabby { return CatPetAsset.grayTabbySleepingImage }
+            if isCalico { return CatPetAsset.calicoSleepingImage }
+            if isBlack { return CatPetAsset.blackSleepingImage }
+            if isSiamese { return CatPetAsset.siameseSleepingImage }
+            return CatPetAsset.curledSleepingImage
+        }
+        if !isCurrentlyEating && usesBakedHungryEyes {
+            if isGrayTabby { return CatPetAsset.grayTabbyHungryImage }
+            if isCalico { return CatPetAsset.calicoHungryImage }
+            if isBlack { return CatPetAsset.blackHungryImage }
+            if isSiamese { return CatPetAsset.siameseHungryImage }
+            return CatPetAsset.hungryImage
         }
         if isGrayTabby { return CatPetAsset.grayTabbyImage }
         if isCalico { return CatPetAsset.calicoImage }
         if isBlack { return CatPetAsset.blackImage }
         if isSiamese { return CatPetAsset.siameseImage }
         return CatPetAsset.image
+    }
+
+    private func usesBakedEyes(isEating: Bool) -> Bool {
+        (isEating && usesBakedEatingEyes) || usesBakedSleepingEyes || (!isEating && usesBakedHungryEyes)
+    }
+
+    private var isCurrentlyEating: Bool {
+        mouthOpen > 0.02
     }
 
     private var showsEyeWhites: Bool {
@@ -244,7 +284,7 @@ private struct CatEyePairView: View {
     let isBlinking: Bool
     let gazeOffset: CGSize
     let additionalOffsetY: CGFloat
-    let showsEyeWhites: Bool
+    let allowsEyeWhites: Bool
     let eyeBackgroundScale: CGFloat
     let eyeMarkScale: CGFloat
     let eyeInk: Color
@@ -266,6 +306,11 @@ private struct CatEyePairView: View {
 
     private var effectiveBlinking: Bool {
         configuration.allowsBlinking && isBlinking
+    }
+
+    private var showsEyeWhites: Bool {
+        guard allowsEyeWhites else { return false }
+        return usesEyeWhites(for: eyeStyles.left) && usesEyeWhites(for: eyeStyles.right)
     }
 
     private var effectiveGaze: CGSize {
@@ -292,6 +337,16 @@ private struct CatEyePairView: View {
             .animation(.easeOut(duration: 0.10), value: gazeOffset)
         }
         .frame(width: 14, height: 14)
+    }
+
+    private func usesEyeWhites(for style: EyeStyle) -> Bool {
+        switch style {
+        case .round, .largeRound, .smallRound:
+            true
+        case .smile, .invertedSmile, .sleepy, .annoyedLeft, .annoyedRight,
+             .chevronLeft, .chevronRight:
+            false
+        }
     }
 }
 

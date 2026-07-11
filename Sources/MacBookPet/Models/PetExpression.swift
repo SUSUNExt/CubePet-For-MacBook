@@ -8,6 +8,7 @@ enum PetExpression: CaseIterable {
     case scared
     case sleeping
     case listening
+    case hungry
 
     var leftEye: EyeStyle {
         switch self {
@@ -23,6 +24,8 @@ enum PetExpression: CaseIterable {
             return .chevronRight
         case .sleeping:
             return .invertedSmile
+        case .hungry:
+            return .annoyedRight
         }
     }
 
@@ -40,6 +43,8 @@ enum PetExpression: CaseIterable {
             return .chevronLeft
         case .sleeping:
             return .invertedSmile
+        case .hungry:
+            return .annoyedLeft
         }
     }
 
@@ -47,7 +52,7 @@ enum PetExpression: CaseIterable {
         switch self {
         case .curious:
             return 8
-        case .scared:
+        case .scared, .hungry:
             return 9
         case .sleeping:
             return 11
@@ -62,7 +67,7 @@ enum PetExpression: CaseIterable {
             return 1
         case .annoyed:
             return -1
-        case .scared:
+        case .scared, .hungry:
             return -1
         case .sleeping:
             return 2
@@ -75,7 +80,7 @@ enum PetExpression: CaseIterable {
         switch self {
         case .calm, .curious, .annoyed:
             return true
-        case .happy, .scared, .sleeping, .listening:
+        case .happy, .scared, .sleeping, .listening, .hungry:
             return false
         }
     }
