@@ -40,6 +40,8 @@ struct FrogPetView: View {
     let gazeOffset: CGSize
     let mouthOpen: CGFloat
     let visualConfiguration: PetVisualConfiguration
+    var customEyeAsset: PetImportedVisualAsset? = nil
+    var appliesVerticalBaseOffsetInView = true
 
     var body: some View {
         let isEating = mouthOpen > 0.02
@@ -68,12 +70,16 @@ struct FrogPetView: View {
             .offset(renderedBaseOffset)
 
             if let eyeConfiguration {
-                FrogEyePairView(
-                    configuration: eyeConfiguration,
-                    expression: expression,
-                    isBlinking: isEating ? false : isBlinking,
-                    gazeOffset: isEating ? .zero : gazeOffset
-                )
+                if let customEyeAsset {
+                    CustomEyePairView(asset: customEyeAsset, configuration: eyeConfiguration)
+                } else {
+                    FrogEyePairView(
+                        configuration: eyeConfiguration,
+                        expression: expression,
+                        isBlinking: isEating ? false : isBlinking,
+                        gazeOffset: isEating ? .zero : gazeOffset
+                    )
+                }
             }
         }
         .scaleEffect(x: 1, y: isEating ? 1.10 : 1, anchor: .bottom)
@@ -98,7 +104,9 @@ struct FrogPetView: View {
         let offset = stateConfiguration.baseOffset ?? .zero
         return CGSize(
             width: CGFloat(offset.x) * PetMetrics.bodyContentSize,
-            height: CGFloat(offset.y) * PetMetrics.bodyContentSize
+            height: appliesVerticalBaseOffsetInView
+                ? CGFloat(offset.y) * PetMetrics.bodyContentSize
+                : 0
         )
     }
 }

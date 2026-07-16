@@ -33,6 +33,8 @@ enum AppText {
     case showSystemInfo
     case aboutCubePet
     case aboutDescription
+    case version
+    case download
     case cpu
     case memory
     case network
@@ -55,6 +57,11 @@ enum AppText {
     case petCustomizationLocked
     case petCustomizationLockedMessage
     case shortcutSettings
+    case menuAppearance
+    case menuStyleDefault
+    case menuStyleLiquidGlass
+    case menuStyleDark
+    case menuStyleLight
 }
 
 enum ShortcutSettingsText {
@@ -84,13 +91,38 @@ enum PetCustomizationText {
     case eating
     case hungry
     case showEyes
+    case eyes
+    case addEyes
+    case addGIF
+    case addFrames
+    case actionFrequency
+    case bottomPet
+    case sleepingBreath
+    case sleepingBreathHint
+    case smallActions
+    case undo
+    case redo
+    case low
+    case medium
+    case high
     case alignEyes
     case eyeStyle
+    case bigEyes
+    case smallBlackBlockEyes
+    case officialEyes
+    case myEyePresets
+    case importEyes
+    case deleteEyePreset
+    case importedEye
+    case presetName
+    case renameEyePreset
     case eyeColor
     case automatic
     case black
     case white
     case size
+    case decreaseSize
+    case increaseSize
     case whiteSize
     case pupilSize
     case spacing
@@ -108,7 +140,17 @@ enum PetCustomizationText {
     case customPets
     case newPet
     case petName
-    case importPNG
+    case importImages
+    case dropImagesHint
+    case animationSettings
+    case gifAnimation
+    case frameAnimation
+    case animationFrameCount
+    case animationSpeed
+    case framePlaybackOrder
+    case dragFramesToReorder
+    case clearPreview
+    case deleteFrame
     case useOfficial
     case deletePet
     case deletePetConfirmation
@@ -154,13 +196,38 @@ final class LanguageSettings: ObservableObject {
         case (.english, .eating): "Eating"
         case (.english, .hungry): "Hungry"
         case (.english, .showEyes): "Show eye module"
+        case (.english, .eyes): "Eyes"
+        case (.english, .addEyes): "Add Eyes"
+        case (.english, .addGIF): "Add GIF..."
+        case (.english, .addFrames): "Add Image Frames..."
+        case (.english, .actionFrequency): "Action frequency"
+        case (.english, .bottomPet): "Bottom Pet"
+        case (.english, .sleepingBreath): "Breathing effect"
+        case (.english, .sleepingBreathHint): "Single images are recommended to use this effect."
+        case (.english, .smallActions): "Small Actions"
+        case (.english, .undo): "Undo"
+        case (.english, .redo): "Redo"
+        case (.english, .low): "Low"
+        case (.english, .medium): "Medium"
+        case (.english, .high): "High"
         case (.english, .alignEyes): "Align both eyes"
-        case (.english, .eyeStyle): "Eye style"
+        case (.english, .eyeStyle): "Eye Type"
+        case (.english, .bigEyes): "Big Eyes"
+        case (.english, .smallBlackBlockEyes): "Small Black Block Eyes"
+        case (.english, .officialEyes): "Official Eyes"
+        case (.english, .myEyePresets): "My Presets"
+        case (.english, .importEyes): "Import Eyes..."
+        case (.english, .deleteEyePreset): "Delete Preset"
+        case (.english, .importedEye): "Imported Eyes"
+        case (.english, .presetName): "Preset Name"
+        case (.english, .renameEyePreset): "Rename Preset"
         case (.english, .eyeColor): "Eye color"
         case (.english, .automatic): "Automatic"
         case (.english, .black): "Black"
         case (.english, .white): "White"
-        case (.english, .size): "Overall Size"
+        case (.english, .size): "Adjust Size"
+        case (.english, .decreaseSize): "Decrease display size"
+        case (.english, .increaseSize): "Increase display size"
         case (.english, .whiteSize): "White Size"
         case (.english, .pupilSize): "Pupil Size"
         case (.english, .spacing): "Spacing"
@@ -170,15 +237,25 @@ final class LanguageSettings: ObservableObject {
         case (.english, .moveSkinDown): "Move skin down"
         case (.english, .save): "Save"
         case (.english, .restoreOfficial): "Restore Official"
-        case (.english, .dragHint): "Drag the eyes in the preview to move them together."
-        case (.english, .independentDragHint): "Drag either eye in the preview to reposition it independently."
+        case (.english, .dragHint): "Click to select. Drag the body or eyes to reposition the selected part."
+        case (.english, .independentDragHint): "Click to select. Drag the body or either eye to reposition it."
         case (.english, .saved): "Saved"
         case (.english, .currentAppearance): "Current Appearance"
         case (.english, .unlockedPets): "Unlocked Pets"
         case (.english, .customPets): "Custom Pets"
         case (.english, .newPet): "New Pet"
         case (.english, .petName): "Pet Name"
-        case (.english, .importPNG): "Import PNG..."
+        case (.english, .importImages): "Import Images..."
+        case (.english, .dropImagesHint): "Drop a GIF or image frames here"
+        case (.english, .animationSettings): "Animation Settings"
+        case (.english, .gifAnimation): "GIF Animation"
+        case (.english, .frameAnimation): "Frame Animation"
+        case (.english, .animationFrameCount): "%d frames"
+        case (.english, .animationSpeed): "Speed"
+        case (.english, .framePlaybackOrder): "Frame Playback Order"
+        case (.english, .dragFramesToReorder): "Drag thumbnails to reorder"
+        case (.english, .clearPreview): "Clear Preview Image"
+        case (.english, .deleteFrame): "Delete Frame"
         case (.english, .useOfficial): "Use Official Skin"
         case (.english, .deletePet): "Delete Pet"
         case (.english, .deletePetConfirmation): "Delete this pet?"
@@ -191,13 +268,38 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .eating): "食べる"
         case (.japanese, .hungry): "空腹"
         case (.japanese, .showEyes): "目のモジュールを表示"
+        case (.japanese, .eyes): "目"
+        case (.japanese, .addEyes): "目を追加"
+        case (.japanese, .addGIF): "GIFを追加..."
+        case (.japanese, .addFrames): "連番画像を追加..."
+        case (.japanese, .actionFrequency): "アクション頻度"
+        case (.japanese, .bottomPet): "下部ペット"
+        case (.japanese, .sleepingBreath): "呼吸エフェクト"
+        case (.japanese, .sleepingBreathHint): "1枚の画像での使用をおすすめします。"
+        case (.japanese, .smallActions): "小さなアクション"
+        case (.japanese, .undo): "元に戻す"
+        case (.japanese, .redo): "やり直す"
+        case (.japanese, .low): "低"
+        case (.japanese, .medium): "中"
+        case (.japanese, .high): "高"
         case (.japanese, .alignEyes): "両目を揃える"
-        case (.japanese, .eyeStyle): "目のスタイル"
+        case (.japanese, .eyeStyle): "目の種類"
+        case (.japanese, .bigEyes): "大きな目"
+        case (.japanese, .smallBlackBlockEyes): "小さな黒い四角の目"
+        case (.japanese, .officialEyes): "公式の目"
+        case (.japanese, .myEyePresets): "マイプリセット"
+        case (.japanese, .importEyes): "目を読み込む..."
+        case (.japanese, .deleteEyePreset): "プリセットを削除"
+        case (.japanese, .importedEye): "読み込んだ目"
+        case (.japanese, .presetName): "プリセット名"
+        case (.japanese, .renameEyePreset): "プリセット名を変更"
         case (.japanese, .eyeColor): "目の色"
         case (.japanese, .automatic): "自動"
         case (.japanese, .black): "黒"
         case (.japanese, .white): "白"
-        case (.japanese, .size): "全体サイズ"
+        case (.japanese, .size): "サイズを調整"
+        case (.japanese, .decreaseSize): "表示サイズを小さくする"
+        case (.japanese, .increaseSize): "表示サイズを大きくする"
         case (.japanese, .whiteSize): "白目サイズ"
         case (.japanese, .pupilSize): "瞳サイズ"
         case (.japanese, .spacing): "間隔"
@@ -207,15 +309,25 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .moveSkinDown): "スキンを下へ移動"
         case (.japanese, .save): "保存"
         case (.japanese, .restoreOfficial): "公式設定に戻す"
-        case (.japanese, .dragHint): "プレビュー内の目をドラッグすると両目が一緒に移動します。"
-        case (.japanese, .independentDragHint): "プレビュー内の片目をドラッグして個別に調整できます。"
+        case (.japanese, .dragHint): "クリックで選択し、胴体または目をドラッグして位置を調整します。"
+        case (.japanese, .independentDragHint): "クリックで選択し、胴体または片目をドラッグして位置を調整します。"
         case (.japanese, .saved): "保存しました"
         case (.japanese, .currentAppearance): "現在の外観"
         case (.japanese, .unlockedPets): "アンロック済みペット"
         case (.japanese, .customPets): "カスタムペット"
         case (.japanese, .newPet): "新しいペット"
         case (.japanese, .petName): "ペット名"
-        case (.japanese, .importPNG): "PNGを読み込む..."
+        case (.japanese, .importImages): "画像を読み込む..."
+        case (.japanese, .dropImagesHint): "GIFまたは連番画像をここにドロップ"
+        case (.japanese, .animationSettings): "アニメーション設定"
+        case (.japanese, .gifAnimation): "GIFアニメーション"
+        case (.japanese, .frameAnimation): "フレームアニメーション"
+        case (.japanese, .animationFrameCount): "%d フレーム"
+        case (.japanese, .animationSpeed): "速度"
+        case (.japanese, .framePlaybackOrder): "フレームの再生順"
+        case (.japanese, .dragFramesToReorder): "サムネイルをドラッグして並べ替え"
+        case (.japanese, .clearPreview): "プレビュー画像をクリア"
+        case (.japanese, .deleteFrame): "フレームを削除"
         case (.japanese, .useOfficial): "公式スキンを使用"
         case (.japanese, .deletePet): "ペットを削除"
         case (.japanese, .deletePetConfirmation): "このペットを削除しますか？"
@@ -228,13 +340,38 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .eating): "먹기"
         case (.korean, .hungry): "배고픔"
         case (.korean, .showEyes): "눈 모듈 표시"
+        case (.korean, .eyes): "눈"
+        case (.korean, .addEyes): "눈 추가"
+        case (.korean, .addGIF): "GIF 추가..."
+        case (.korean, .addFrames): "이미지 프레임 추가..."
+        case (.korean, .actionFrequency): "동작 빈도"
+        case (.korean, .bottomPet): "바닥 펫"
+        case (.korean, .sleepingBreath): "호흡 효과"
+        case (.korean, .sleepingBreathHint): "단일 이미지에서 사용하는 것을 권장합니다."
+        case (.korean, .smallActions): "작은 동작"
+        case (.korean, .undo): "실행 취소"
+        case (.korean, .redo): "다시 실행"
+        case (.korean, .low): "낮음"
+        case (.korean, .medium): "중간"
+        case (.korean, .high): "높음"
         case (.korean, .alignEyes): "두 눈 정렬"
-        case (.korean, .eyeStyle): "눈 스타일"
+        case (.korean, .eyeStyle): "눈 유형"
+        case (.korean, .bigEyes): "큰 눈"
+        case (.korean, .smallBlackBlockEyes): "작은 검은 네모 눈"
+        case (.korean, .officialEyes): "공식 눈"
+        case (.korean, .myEyePresets): "내 프리셋"
+        case (.korean, .importEyes): "눈 가져오기..."
+        case (.korean, .deleteEyePreset): "프리셋 삭제"
+        case (.korean, .importedEye): "가져온 눈"
+        case (.korean, .presetName): "프리셋 이름"
+        case (.korean, .renameEyePreset): "프리셋 이름 변경"
         case (.korean, .eyeColor): "눈 색상"
         case (.korean, .automatic): "자동"
         case (.korean, .black): "검정"
         case (.korean, .white): "흰색"
-        case (.korean, .size): "전체 크기"
+        case (.korean, .size): "크기 조절"
+        case (.korean, .decreaseSize): "표시 크기 줄이기"
+        case (.korean, .increaseSize): "표시 크기 늘리기"
         case (.korean, .whiteSize): "흰자 크기"
         case (.korean, .pupilSize): "동공 크기"
         case (.korean, .spacing): "간격"
@@ -244,15 +381,25 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .moveSkinDown): "스킨을 아래로 이동"
         case (.korean, .save): "저장"
         case (.korean, .restoreOfficial): "공식 설정 복원"
-        case (.korean, .dragHint): "미리보기에서 눈을 드래그하면 두 눈이 함께 이동합니다."
-        case (.korean, .independentDragHint): "미리보기에서 한쪽 눈을 드래그해 개별 조정하세요."
+        case (.korean, .dragHint): "클릭으로 선택한 뒤 몸통 또는 눈을 드래그해 위치를 조정하세요."
+        case (.korean, .independentDragHint): "클릭으로 선택한 뒤 몸통 또는 한쪽 눈을 드래그해 위치를 조정하세요."
         case (.korean, .saved): "저장됨"
         case (.korean, .currentAppearance): "현재 외형"
         case (.korean, .unlockedPets): "잠금 해제된 펫"
         case (.korean, .customPets): "커스텀 펫"
         case (.korean, .newPet): "새 펫"
         case (.korean, .petName): "펫 이름"
-        case (.korean, .importPNG): "PNG 가져오기..."
+        case (.korean, .importImages): "이미지 가져오기..."
+        case (.korean, .dropImagesHint): "GIF 또는 애니메이션 프레임을 여기에 놓으세요"
+        case (.korean, .animationSettings): "애니메이션 설정"
+        case (.korean, .gifAnimation): "GIF 애니메이션"
+        case (.korean, .frameAnimation): "프레임 애니메이션"
+        case (.korean, .animationFrameCount): "%d 프레임"
+        case (.korean, .animationSpeed): "속도"
+        case (.korean, .framePlaybackOrder): "프레임 재생 순서"
+        case (.korean, .dragFramesToReorder): "썸네일을 드래그하여 순서 변경"
+        case (.korean, .clearPreview): "미리보기 이미지 지우기"
+        case (.korean, .deleteFrame): "프레임 삭제"
         case (.korean, .useOfficial): "공식 스킨 사용"
         case (.korean, .deletePet): "펫 삭제"
         case (.korean, .deletePetConfirmation): "이 펫을 삭제할까요?"
@@ -265,15 +412,40 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .eating): "吃"
         case (.simplifiedChinese, .hungry): "饥饿"
         case (.simplifiedChinese, .showEyes): "显示眼睛模块"
+        case (.simplifiedChinese, .eyes): "眼睛"
+        case (.simplifiedChinese, .addEyes): "添加眼睛"
+        case (.simplifiedChinese, .addGIF): "添加 GIF..."
+        case (.simplifiedChinese, .addFrames): "添加多帧图片..."
+        case (.simplifiedChinese, .actionFrequency): "小动作出现频率"
+        case (.simplifiedChinese, .bottomPet): "底部宠物"
+        case (.simplifiedChinese, .sleepingBreath): "呼吸感"
+        case (.simplifiedChinese, .sleepingBreathHint): "单张图片建议开启"
+        case (.simplifiedChinese, .smallActions): "小动作"
+        case (.simplifiedChinese, .undo): "撤销"
+        case (.simplifiedChinese, .redo): "重做"
+        case (.simplifiedChinese, .low): "低"
+        case (.simplifiedChinese, .medium): "中"
+        case (.simplifiedChinese, .high): "高"
         case (.simplifiedChinese, .alignEyes): "双眼对齐"
-        case (.simplifiedChinese, .eyeStyle): "眼睛样式"
+        case (.simplifiedChinese, .eyeStyle): "眼睛类型"
+        case (.simplifiedChinese, .bigEyes): "大眼睛"
+        case (.simplifiedChinese, .smallBlackBlockEyes): "小黑块眼睛"
+        case (.simplifiedChinese, .officialEyes): "官方眼睛"
+        case (.simplifiedChinese, .myEyePresets): "我的预设"
+        case (.simplifiedChinese, .importEyes): "导入眼睛..."
+        case (.simplifiedChinese, .deleteEyePreset): "删除预设"
+        case (.simplifiedChinese, .importedEye): "导入的眼睛"
+        case (.simplifiedChinese, .presetName): "预设名称"
+        case (.simplifiedChinese, .renameEyePreset): "修改预设名称"
         case (.simplifiedChinese, .eyeColor): "眼睛颜色"
         case (.simplifiedChinese, .automatic): "自动"
         case (.simplifiedChinese, .black): "黑色"
         case (.simplifiedChinese, .white): "白色"
-        case (.simplifiedChinese, .size): "整体大小"
+        case (.simplifiedChinese, .size): "调整大小"
+        case (.simplifiedChinese, .decreaseSize): "缩小展示大小"
+        case (.simplifiedChinese, .increaseSize): "放大展示大小"
         case (.simplifiedChinese, .whiteSize): "白色大小"
-        case (.simplifiedChinese, .pupilSize): "眼珠大小"
+        case (.simplifiedChinese, .pupilSize): "黑眼珠大小"
         case (.simplifiedChinese, .spacing): "间距"
         case (.simplifiedChinese, .moveSkinLeft): "皮肤向左微调"
         case (.simplifiedChinese, .moveSkinRight): "皮肤向右微调"
@@ -281,15 +453,25 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .moveSkinDown): "皮肤向下微调"
         case (.simplifiedChinese, .save): "保存"
         case (.simplifiedChinese, .restoreOfficial): "恢复官方设置"
-        case (.simplifiedChinese, .dragHint): "在预览中拖动眼睛可同时调整双眼位置。"
-        case (.simplifiedChinese, .independentDragHint): "在预览中拖动任意一只眼睛可单独调整位置。"
+        case (.simplifiedChinese, .dragHint): "点击只选中；拖动身体或眼睛，才会移动对应部件。"
+        case (.simplifiedChinese, .independentDragHint): "点击只选中；拖动身体或任意一只眼睛，才会移动对应部件。"
         case (.simplifiedChinese, .saved): "已保存"
         case (.simplifiedChinese, .currentAppearance): "当前外观"
         case (.simplifiedChinese, .unlockedPets): "已解锁宠物"
         case (.simplifiedChinese, .customPets): "自定义宠物"
         case (.simplifiedChinese, .newPet): "新建宠物"
         case (.simplifiedChinese, .petName): "宠物名称"
-        case (.simplifiedChinese, .importPNG): "导入 PNG..."
+        case (.simplifiedChinese, .importImages): "导入图片..."
+        case (.simplifiedChinese, .dropImagesHint): "拖入图片或GIF"
+        case (.simplifiedChinese, .animationSettings): "动画设置"
+        case (.simplifiedChinese, .gifAnimation): "GIF 动画"
+        case (.simplifiedChinese, .frameAnimation): "帧动画"
+        case (.simplifiedChinese, .animationFrameCount): "%d 帧"
+        case (.simplifiedChinese, .animationSpeed): "播放速度"
+        case (.simplifiedChinese, .framePlaybackOrder): "帧播放顺序"
+        case (.simplifiedChinese, .dragFramesToReorder): "拖动缩略图调整顺序"
+        case (.simplifiedChinese, .clearPreview): "清空预览图片"
+        case (.simplifiedChinese, .deleteFrame): "删除这一帧"
         case (.simplifiedChinese, .useOfficial): "使用官方皮肤"
         case (.simplifiedChinese, .deletePet): "删除宠物"
         case (.simplifiedChinese, .deletePetConfirmation): "删除这个宠物？"
@@ -302,15 +484,40 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .eating): "吃"
         case (.traditionalChinese, .hungry): "飢餓"
         case (.traditionalChinese, .showEyes): "顯示眼睛模組"
+        case (.traditionalChinese, .eyes): "眼睛"
+        case (.traditionalChinese, .addEyes): "加入眼睛"
+        case (.traditionalChinese, .addGIF): "加入 GIF..."
+        case (.traditionalChinese, .addFrames): "加入多影格圖片..."
+        case (.traditionalChinese, .actionFrequency): "小動作出現頻率"
+        case (.traditionalChinese, .bottomPet): "底部寵物"
+        case (.traditionalChinese, .sleepingBreath): "呼吸感"
+        case (.traditionalChinese, .sleepingBreathHint): "建議在單張圖片時開啟"
+        case (.traditionalChinese, .smallActions): "小動作"
+        case (.traditionalChinese, .undo): "復原"
+        case (.traditionalChinese, .redo): "重做"
+        case (.traditionalChinese, .low): "低"
+        case (.traditionalChinese, .medium): "中"
+        case (.traditionalChinese, .high): "高"
         case (.traditionalChinese, .alignEyes): "雙眼對齊"
-        case (.traditionalChinese, .eyeStyle): "眼睛樣式"
+        case (.traditionalChinese, .eyeStyle): "眼睛類型"
+        case (.traditionalChinese, .bigEyes): "大眼睛"
+        case (.traditionalChinese, .smallBlackBlockEyes): "小黑塊眼睛"
+        case (.traditionalChinese, .officialEyes): "官方眼睛"
+        case (.traditionalChinese, .myEyePresets): "我的預設"
+        case (.traditionalChinese, .importEyes): "匯入眼睛..."
+        case (.traditionalChinese, .deleteEyePreset): "刪除預設"
+        case (.traditionalChinese, .importedEye): "匯入的眼睛"
+        case (.traditionalChinese, .presetName): "預設名稱"
+        case (.traditionalChinese, .renameEyePreset): "修改預設名稱"
         case (.traditionalChinese, .eyeColor): "眼睛顏色"
         case (.traditionalChinese, .automatic): "自動"
         case (.traditionalChinese, .black): "黑色"
         case (.traditionalChinese, .white): "白色"
-        case (.traditionalChinese, .size): "整體大小"
+        case (.traditionalChinese, .size): "調整大小"
+        case (.traditionalChinese, .decreaseSize): "縮小顯示大小"
+        case (.traditionalChinese, .increaseSize): "放大顯示大小"
         case (.traditionalChinese, .whiteSize): "白色大小"
-        case (.traditionalChinese, .pupilSize): "眼珠大小"
+        case (.traditionalChinese, .pupilSize): "黑眼珠大小"
         case (.traditionalChinese, .spacing): "間距"
         case (.traditionalChinese, .moveSkinLeft): "皮膚向左微調"
         case (.traditionalChinese, .moveSkinRight): "皮膚向右微調"
@@ -318,15 +525,25 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .moveSkinDown): "皮膚向下微調"
         case (.traditionalChinese, .save): "儲存"
         case (.traditionalChinese, .restoreOfficial): "恢復官方設定"
-        case (.traditionalChinese, .dragHint): "在預覽中拖動眼睛可同時調整雙眼位置。"
-        case (.traditionalChinese, .independentDragHint): "在預覽中拖動任意一隻眼睛可單獨調整位置。"
+        case (.traditionalChinese, .dragHint): "點擊只會選取；拖動身體或眼睛，才會移動對應部件。"
+        case (.traditionalChinese, .independentDragHint): "點擊只會選取；拖動身體或任意一隻眼睛，才會移動對應部件。"
         case (.traditionalChinese, .saved): "已儲存"
         case (.traditionalChinese, .currentAppearance): "目前外觀"
         case (.traditionalChinese, .unlockedPets): "已解鎖寵物"
         case (.traditionalChinese, .customPets): "自訂寵物"
         case (.traditionalChinese, .newPet): "新增寵物"
         case (.traditionalChinese, .petName): "寵物名稱"
-        case (.traditionalChinese, .importPNG): "匯入 PNG..."
+        case (.traditionalChinese, .importImages): "匯入圖片..."
+        case (.traditionalChinese, .dropImagesHint): "將 GIF 或多張動畫影格拖到這裡"
+        case (.traditionalChinese, .animationSettings): "動畫設定"
+        case (.traditionalChinese, .gifAnimation): "GIF 動畫"
+        case (.traditionalChinese, .frameAnimation): "影格動畫"
+        case (.traditionalChinese, .animationFrameCount): "%d 影格"
+        case (.traditionalChinese, .animationSpeed): "播放速度"
+        case (.traditionalChinese, .framePlaybackOrder): "影格播放順序"
+        case (.traditionalChinese, .dragFramesToReorder): "拖動縮圖調整順序"
+        case (.traditionalChinese, .clearPreview): "清空預覽圖片"
+        case (.traditionalChinese, .deleteFrame): "刪除這一影格"
         case (.traditionalChinese, .useOfficial): "使用官方皮膚"
         case (.traditionalChinese, .deletePet): "刪除寵物"
         case (.traditionalChinese, .deletePetConfirmation): "刪除這個寵物？"
@@ -463,6 +680,7 @@ final class LanguageSettings: ObservableObject {
         case (.english, .catCalico): "Calico Cat"
         case (.english, .catBlack): "White-Tuft Black Cat"
         case (.english, .catSiamese): "Fluffy Siamese Cat"
+        case (.english, .catYellow): "Huang Xiaohuang"
         case (.japanese, .classic): "黒ブロック"
         case (.japanese, .blue): "青ブロック"
         case (.japanese, .green): "緑ブロック"
@@ -474,6 +692,7 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .catCalico): "三毛猫"
         case (.japanese, .catBlack): "白い毛の黒猫"
         case (.japanese, .catSiamese): "ふわふわシャム猫"
+        case (.japanese, .catYellow): "ホアン・シャオホアン"
         case (.korean, .classic): "검은 블록"
         case (.korean, .blue): "파란 블록"
         case (.korean, .green): "초록 블록"
@@ -485,6 +704,7 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .catCalico): "삼색 고양이"
         case (.korean, .catBlack): "흰점 검은 고양이"
         case (.korean, .catSiamese): "복슬복슬 샴고양이"
+        case (.korean, .catYellow): "황샤오황"
         case (.simplifiedChinese, .classic): "黑块"
         case (.simplifiedChinese, .blue): "蓝块"
         case (.simplifiedChinese, .green): "绿块"
@@ -496,6 +716,7 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .catCalico): "三花猫"
         case (.simplifiedChinese, .catBlack): "白额黑猫"
         case (.simplifiedChinese, .catSiamese): "蓬松暹罗猫"
+        case (.simplifiedChinese, .catYellow): "黄小黄"
         case (.traditionalChinese, .classic): "黑塊"
         case (.traditionalChinese, .blue): "藍塊"
         case (.traditionalChinese, .green): "綠塊"
@@ -507,6 +728,7 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .catCalico): "三花貓"
         case (.traditionalChinese, .catBlack): "白額黑貓"
         case (.traditionalChinese, .catSiamese): "蓬鬆暹羅貓"
+        case (.traditionalChinese, .catYellow): "黃小黃"
         }
     }
 
@@ -580,6 +802,8 @@ final class LanguageSettings: ObservableObject {
         case .showSystemInfo: "Show System Info"
         case .aboutCubePet: "About CubePet"
         case .aboutDescription: "A casual desktop pet app currently in an early stage of development.\nDeveloped with assistance from GPT."
+        case .version: "Version"
+        case .download: "Download"
         case .cpu: "CPU"
         case .memory: "Memory"
         case .network: "Net"
@@ -602,6 +826,11 @@ final class LanguageSettings: ObservableObject {
         case .petCustomizationLocked: "Pet Customization Is Locked"
         case .petCustomizationLockedMessage: "Unlock this feature to create custom pets, import state images, and arrange visual modules."
         case .shortcutSettings: "Shortcut Settings"
+        case .menuAppearance: "Menu Appearance"
+        case .menuStyleDefault: "Follow System"
+        case .menuStyleLiquidGlass: "Liquid Glass"
+        case .menuStyleDark: "Dark appearance"
+        case .menuStyleLight: "Light appearance"
         }
     }
 
@@ -620,6 +849,8 @@ final class LanguageSettings: ObservableObject {
         case .showSystemInfo: "システム情報を表示"
         case .aboutCubePet: "CubePetについて"
         case .aboutDescription: "気軽に楽しめるデスクトップペットアプリです。現在は初期開発段階です。\n本ソフトウェアはGPTの支援を受けて開発されました。"
+        case .version: "バージョン"
+        case .download: "ダウンロード"
         case .cpu: "CPU"
         case .memory: "メモリ"
         case .network: "通信"
@@ -642,6 +873,11 @@ final class LanguageSettings: ObservableObject {
         case .petCustomizationLocked: "ペットのカスタマイズはロックされています"
         case .petCustomizationLockedMessage: "ロックを解除すると、カスタムペットの作成、状態画像の読み込み、視覚モジュールの配置ができます。"
         case .shortcutSettings: "ショートカット設定"
+        case .menuAppearance: "メニューの外観"
+        case .menuStyleDefault: "システムに合わせる"
+        case .menuStyleLiquidGlass: "リキッドグラス"
+        case .menuStyleDark: "ダーク外観"
+        case .menuStyleLight: "ライト外観"
         }
     }
 
@@ -660,6 +896,8 @@ final class LanguageSettings: ObservableObject {
         case .showSystemInfo: "시스템 정보 표시"
         case .aboutCubePet: "CubePet 정보"
         case .aboutDescription: "가볍게 즐기는 데스크톱 펫 앱으로, 현재 초기 개발 단계입니다.\n이 소프트웨어는 GPT의 도움을 받아 개발되었습니다."
+        case .version: "버전"
+        case .download: "다운로드"
         case .cpu: "CPU"
         case .memory: "메모리"
         case .network: "네트워크"
@@ -682,6 +920,11 @@ final class LanguageSettings: ObservableObject {
         case .petCustomizationLocked: "펫 커스터마이징이 잠겨 있습니다"
         case .petCustomizationLockedMessage: "잠금을 해제하면 커스텀 펫을 만들고 상태 이미지를 가져오며 시각 모듈을 배치할 수 있습니다."
         case .shortcutSettings: "단축키 설정"
+        case .menuAppearance: "메뉴 모양"
+        case .menuStyleDefault: "시스템 설정 따르기"
+        case .menuStyleLiquidGlass: "리퀴드 글래스"
+        case .menuStyleDark: "다크 모드 모양"
+        case .menuStyleLight: "라이트 모드 모양"
         }
     }
 
@@ -700,6 +943,8 @@ final class LanguageSettings: ObservableObject {
         case .showSystemInfo: "显示系统信息"
         case .aboutCubePet: "关于CubePet"
         case .aboutDescription: "CubePet 是一只住在桌面上的小宠物，\n陪你工作、安静成长～\n偶尔也能帮你吃掉不需要的文件^_^"
+        case .version: "版本"
+        case .download: "下载地址"
         case .cpu: "CPU"
         case .memory: "内存"
         case .network: "网速"
@@ -722,6 +967,11 @@ final class LanguageSettings: ObservableObject {
         case .petCustomizationLocked: "宠物自定义尚未解锁"
         case .petCustomizationLockedMessage: "解锁后可以创建自定义宠物、导入状态图片并调整视觉模块。"
         case .shortcutSettings: "快捷键设置"
+        case .menuAppearance: "菜单外观"
+        case .menuStyleDefault: "跟随系统"
+        case .menuStyleLiquidGlass: "液态玻璃"
+        case .menuStyleDark: "黑夜模式"
+        case .menuStyleLight: "白天模式"
         }
     }
 
@@ -740,6 +990,8 @@ final class LanguageSettings: ObservableObject {
         case .showSystemInfo: "顯示系統資訊"
         case .aboutCubePet: "關於CubePet"
         case .aboutDescription: "這是一款休閒桌面寵物軟體，目前只是初步開發階段。\n本軟體由GPT協助開發"
+        case .version: "版本"
+        case .download: "下載連結"
         case .cpu: "CPU"
         case .memory: "記憶體"
         case .network: "網速"
@@ -762,6 +1014,11 @@ final class LanguageSettings: ObservableObject {
         case .petCustomizationLocked: "寵物自訂尚未解鎖"
         case .petCustomizationLockedMessage: "解鎖後可以建立自訂寵物、匯入狀態圖片並調整視覺模組。"
         case .shortcutSettings: "快速鍵設定"
+        case .menuAppearance: "選單外觀"
+        case .menuStyleDefault: "跟隨系統"
+        case .menuStyleLiquidGlass: "液態玻璃"
+        case .menuStyleDark: "夜間模式"
+        case .menuStyleLight: "日間模式"
         }
     }
 }

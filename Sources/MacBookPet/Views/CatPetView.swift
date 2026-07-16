@@ -23,6 +23,12 @@ enum CatPetAsset {
     static let siameseSleepingImage = load(named: "CatPetSiameseSleeping")
     static let siameseHungryImage = load(named: "CatPetSiameseHungry")
     static let siameseMouthImage = load(named: "CatPetSiameseMouthUnique")
+    static let yellowImage = load(named: "CatPetYellowFaceless")
+    static let yellowHappyImage = load(named: "CatPetYellowHappy")
+    static let yellowScaredImage = load(named: "CatPetYellowScared")
+    static let yellowSleepingImage = load(named: "CatPetYellowSleeping")
+    static let yellowEatingImage = load(named: "CatPetYellowEating")
+    static let yellowHungryImage = load(named: "CatPetYellowHungry")
 
     private static func load(named name: String) -> NSImage? {
         guard let url = Bundle.main.url(forResource: name, withExtension: "png") else {
@@ -72,6 +78,8 @@ struct CatPetView: View {
     let mouthOpen: CGFloat
     let skinID: String
     let visualConfiguration: PetVisualConfiguration
+    var customEyeAsset: PetImportedVisualAsset? = nil
+    var appliesVerticalBaseOffsetInView = true
 
     var body: some View {
         let isEating = mouthOpen > 0.02
@@ -85,12 +93,12 @@ struct CatPetView: View {
         return ZStack {
             ZStack {
                 CatPetImage(image: catImage(isEating: false))
-                    .scaleEffect(isGrayTabby ? 1.18 : 1, anchor: .bottom)
+                    .scaleEffect(imageScale, anchor: .bottom)
 
                 if isEating {
                     CatPetImage(image: catImage(isEating: true))
                         .scaleEffect(
-                            isGrayTabby ? 1.18 : (isDefaultSkin ? 0.925 : 1),
+                            isGrayTabby || isYellow ? imageScale : (isDefaultSkin ? 0.925 : 1),
                             anchor: .bottom
                         )
                         .offset(
@@ -104,7 +112,15 @@ struct CatPetView: View {
             }
             .offset(renderedBaseOffset)
 
-            if let eyeConfiguration, !usesBakedEyes(isEating: isEating) {
+            if let eyeConfiguration, let customEyeAsset {
+                CustomEyePairView(
+                    asset: customEyeAsset,
+                    configuration: eyeConfiguration,
+                    additionalOffset: CGSize(width: 0, height: defaultEyeOffsetY)
+                )
+                .frame(width: PetMetrics.bodyContentSize, height: PetMetrics.bodyContentSize)
+                .scaleEffect(isGrayTabby ? 1.08 : 1, anchor: .bottom)
+            } else if let eyeConfiguration, !usesBakedEyes(isEating: isEating) {
                 CatEyePairView(
                     configuration: eyeConfiguration,
                     expression: expression,
@@ -148,6 +164,14 @@ struct CatPetView: View {
         skinID == "cat.siamese"
     }
 
+    private var isYellow: Bool {
+        skinID == "cat.yellow"
+    }
+
+    private var imageScale: CGFloat {
+        isGrayTabby ? 1.18 : 1
+    }
+
     private var usesBakedEatingEyes: Bool {
         return isGrayTabby || isBlack || isSiamese || isDefaultSkin
     }
@@ -161,7 +185,7 @@ struct CatPetView: View {
     }
 
     private var isDefaultSkin: Bool {
-        !isGrayTabby && !isCalico && !isBlack && !isSiamese
+        !isGrayTabby && !isCalico && !isBlack && !isSiamese && !isYellow
     }
 
     private var stateConfiguration: PetStateVisualConfiguration {
@@ -181,11 +205,23 @@ struct CatPetView: View {
         let offset = stateConfiguration.baseOffset ?? .zero
         return CGSize(
             width: CGFloat(offset.x) * PetMetrics.bodyContentSize,
-            height: CGFloat(offset.y) * PetMetrics.bodyContentSize
+            height: appliesVerticalBaseOffsetInView
+                ? CGFloat(offset.y) * PetMetrics.bodyContentSize
+                : 0
         )
     }
 
     private func catImage(isEating: Bool) -> NSImage? {
+        if isYellow {
+            if isEating { return CatPetAsset.yellowEatingImage }
+            switch expression {
+            case .happy: return CatPetAsset.yellowHappyImage
+            case .scared: return CatPetAsset.yellowScaredImage
+            case .sleeping: return CatPetAsset.yellowSleepingImage
+            case .hungry: return CatPetAsset.yellowHungryImage
+            default: return CatPetAsset.yellowImage
+            }
+        }
         if isEating {
             if isGrayTabby { return CatPetAsset.grayTabbyLargeMouthImage }
             if isCalico { return CatPetAsset.calicoMouthOnlyImage }
@@ -215,7 +251,7 @@ struct CatPetView: View {
     }
 
     private func usesBakedEyes(isEating: Bool) -> Bool {
-        (isEating && usesBakedEatingEyes) || usesBakedSleepingEyes || (!isEating && usesBakedHungryEyes)
+        isYellow || (isEating && usesBakedEatingEyes) || usesBakedSleepingEyes || (!isEating && usesBakedHungryEyes)
     }
 
     private var isCurrentlyEating: Bool {

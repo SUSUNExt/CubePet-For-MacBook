@@ -23,7 +23,7 @@ final class AboutWindowController {
             appIcon: loadAppIcon()
         )
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 410),
             styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false

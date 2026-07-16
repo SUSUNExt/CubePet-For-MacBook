@@ -7,6 +7,8 @@ struct CubePetView: View {
     let gazeOffset: CGSize
     let mouthOpen: CGFloat
     let visualConfiguration: PetVisualConfiguration
+    var customEyeAsset: PetImportedVisualAsset? = nil
+    var appliesVerticalBaseOffsetInView = true
 
     var body: some View {
         ZStack {
@@ -22,7 +24,8 @@ struct CubePetView: View {
                     additionalOffset: CGSize(
                         width: 0,
                         height: isEating ? -9 - mouthOpen * 13 : expression.verticalOffset
-                    )
+                    ),
+                    customEyeAsset: customEyeAsset
                 )
                 .animation(.spring(response: 0.18, dampingFraction: 0.72), value: mouthOpen)
             }
@@ -45,7 +48,9 @@ struct CubePetView: View {
         let offset = stateConfiguration.baseOffset ?? .zero
         return CGSize(
             width: CGFloat(offset.x) * PetMetrics.bodyContentSize,
-            height: CGFloat(offset.y) * PetMetrics.bodyContentSize
+            height: appliesVerticalBaseOffsetInView
+                ? CGFloat(offset.y) * PetMetrics.bodyContentSize
+                : 0
         )
     }
 

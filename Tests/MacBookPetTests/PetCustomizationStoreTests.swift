@@ -21,7 +21,8 @@ final class PetCustomizationStoreTests: XCTestCase {
                     base: .importedAsset(id: assetID),
                     eyes: PetEyeModuleConfiguration(kind: .tracking)
                 )
-            ]
+            ],
+            bottomPetEnabled: true
         )
 
         let pet = try store.createCustomPet(
@@ -88,6 +89,222 @@ final class PetCustomizationStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testFrameAnimationAssetPersistsInFrameOrder() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+        let store = PetCustomizationStore(
+            fileManager: fileManager,
+            customRootURL: temporaryRoot
+        )
+        let assetID = try store.importVisualAsset(from: [fixturePNGURL, fixturePNGURL])
+        let asset = try XCTUnwrap(store.importedVisualAsset(for: assetID))
+
+        XCTAssertEqual(asset.kind, .frameAnimation)
+        XCTAssertTrue(asset.isAnimated)
+        XCTAssertEqual(asset.frameCount, 2)
+        XCTAssertEqual(asset.frameURLs.map(\.lastPathComponent), ["0000.png", "0001.png"])
+
+        let configuration = PetVisualConfiguration(
+            states: [
+                .normal: PetStateVisualConfiguration(
+                    base: .importedAsset(id: assetID),
+                    eyes: nil,
+                    animationPlaybackRate: 1.5
+                )
+            ]
+        )
+        let pet = try store.createCustomPet(name: "Frame Pet", visualConfiguration: configuration)
+        let reloadedStore = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+
+        XCTAssertEqual(
+            reloadedStore.customPet(id: pet.id)?.visualConfiguration.configuration(for: .normal).animationPlaybackRate,
+            1.5
+        )
+        XCTAssertEqual(reloadedStore.importedVisualAsset(for: assetID)?.frameCount, 2)
+    }
+
+    @MainActor
+    func testFrameAnimationCanBeReorderedAndReloaded() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+        let sourceDirectory = temporaryRoot.appendingPathComponent("sources", isDirectory: true)
+        try fileManager.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        let sourceURLs = ["png", "jpg", "heic"].map {
+            sourceDirectory.appendingPathComponent("frame.\($0)", isDirectory: false)
+        }
+        for sourceURL in sourceURLs {
+            try fileManager.copyItem(at: fixturePNGURL, to: sourceURL)
+        }
+
+        let store = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let assetID = try store.importVisualAsset(from: sourceURLs)
+
+        try store.reorderFrames(assetID: assetID, from: 2, to: 1)
+        XCTAssertEqual(
+            store.importedVisualAsset(for: assetID)?.frameURLs.map(\.lastPathComponent),
+            ["0000.png", "0001.heic", "0002.jpg"]
+        )
+
+        _ = try store.createCustomPet(
+            name: "Reordered Frame Pet",
+            visualConfiguration: PetVisualConfiguration(
+                states: [
+                    .normal: PetStateVisualConfiguration(
+                        base: .importedAsset(id: assetID),
+                        eyes: nil
+                    )
+                ]
+            )
+        )
+
+        let reloadedStore = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        XCTAssertEqual(
+            reloadedStore.importedVisualAsset(for: assetID)?.frameURLs.map(\.lastPathComponent),
+            ["0000.png", "0001.heic", "0002.jpg"]
+        )
+    }
+
+    @MainActor
+    func testFrameAnimationCanRemoveAnIndividualFrame() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+        let store = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let assetID = try store.importVisualAsset(from: [fixturePNGURL, fixturePNGURL])
+
+        try store.removeFrame(assetID: assetID, at: 1)
+
+        XCTAssertEqual(store.importedVisualAsset(for: assetID)?.frameCount, 1)
+        XCTAssertThrowsError(try store.removeFrame(assetID: assetID, at: 0)) { error in
+            guard case PetAssetStoreError.lastFrameRemovalUnsupported = error else {
+                return XCTFail("Expected the final-frame deletion guard, got \(error)")
+            }
+        }
+    }
+
+    @MainActor
+    func testActionAnimationAssetPersistsWithItsDefaultVisual() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+        let store = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let defaultAssetID = try store.importVisualAsset(from: [fixturePNGURL])
+        let actionAssetID = try store.importVisualAsset(from: [fixturePNGURL, fixturePNGURL])
+        let configuration = PetVisualConfiguration(
+            states: [
+                .normal: PetStateVisualConfiguration(
+                    base: .importedAsset(id: defaultAssetID),
+                    eyes: nil,
+                    actionAssetID: actionAssetID,
+                    actionAnimationPlaybackRate: 0.8
+                )
+            ]
+        )
+
+        let pet = try store.createCustomPet(name: "Action Pet", visualConfiguration: configuration)
+        let reloadedStore = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let reloadedState = reloadedStore.customPet(id: pet.id)?.visualConfiguration.configuration(for: .normal)
+
+        XCTAssertEqual(reloadedState?.actionAssetID, actionAssetID)
+        XCTAssertEqual(reloadedState?.actionAnimationPlaybackRate, 0.8)
+        XCTAssertNotNil(reloadedStore.importedVisualAsset(for: actionAssetID))
+    }
+
+    @MainActor
+    func testMultipleActionAssetsPersistInTheirAddedOrder() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+        let store = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let defaultAssetID = try store.importVisualAsset(from: [fixturePNGURL])
+        let firstActionID = try store.importVisualAsset(from: [fixturePNGURL])
+        let secondActionID = try store.importVisualAsset(from: [fixturePNGURL, fixturePNGURL])
+        var state = PetStateVisualConfiguration(
+            base: .importedAsset(id: defaultAssetID),
+            eyes: nil
+        )
+        state.appendActionAsset(firstActionID)
+        state.appendActionAsset(secondActionID)
+        state.actionFrequency = .high
+
+        let pet = try store.createCustomPet(
+            name: "Multiple Actions",
+            visualConfiguration: PetVisualConfiguration(states: [.normal: state])
+        )
+        let reloadedStore = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let reloadedState = try XCTUnwrap(
+            reloadedStore.customPet(id: pet.id)?.visualConfiguration.configuration(for: .normal)
+        )
+
+        XCTAssertEqual(reloadedState.resolvedActionAssetIDs, [firstActionID, secondActionID])
+        XCTAssertEqual(reloadedState.resolvedActionFrequency, .high)
+        XCTAssertNotNil(reloadedStore.importedVisualAsset(for: secondActionID))
+    }
+
+    @MainActor
+    func testSleepingBreathPreferencePersistsForCustomPet() throws {
+        let fileManager = FileManager.default
+        let temporaryRoot = fileManager.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fileManager.removeItem(at: temporaryRoot) }
+
+        let store = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let assetID = try store.importPNG(from: fixturePNGURL)
+        var sleepingState = PetStateVisualConfiguration(
+            base: .importedAsset(id: assetID),
+            eyes: nil
+        )
+        sleepingState.sleepingBreathEnabled = false
+        let pet = try store.createCustomPet(
+            name: "No Breathing",
+            visualConfiguration: PetVisualConfiguration(
+                states: [
+                    .normal: PetStateVisualConfiguration(
+                        base: .importedAsset(id: assetID),
+                        eyes: nil
+                    ),
+                    .sleeping: sleepingState
+                ]
+            )
+        )
+
+        let reloadedStore = PetCustomizationStore(fileManager: fileManager, customRootURL: temporaryRoot)
+        let reloadedState = try XCTUnwrap(
+            reloadedStore.customPet(id: pet.id)?.visualConfiguration.configuration(for: .sleeping)
+        )
+
+        XCTAssertFalse(reloadedState.resolvedSleepingBreathEnabled)
+    }
+
+    func testOnlyStillImagesSupportSleepingBreath() {
+        let stillImage = PetImportedVisualAsset(
+            kind: .stillImage,
+            imageURL: fixturePNGURL,
+            frameURLs: []
+        )
+        let frameAnimation = PetImportedVisualAsset(
+            kind: .frameAnimation,
+            imageURL: fixturePNGURL,
+            frameURLs: [fixturePNGURL, fixturePNGURL]
+        )
+
+        XCTAssertTrue(stillImage.supportsSleepingBreath)
+        XCTAssertFalse(frameAnimation.supportsSleepingBreath)
+    }
+
+    @MainActor
     func testCustomizationEntitlementIsAvailableByDefault() {
         XCTAssertTrue(FeatureEntitlementStore().isUnlocked(.petCustomization))
     }
@@ -109,11 +326,36 @@ final class PetCustomizationStoreTests: XCTestCase {
             XCTAssertTrue(store.ownsPet(pet.id))
         }
         XCTAssertTrue(store.ownsSkin("cat.classic"))
+        XCTAssertTrue(store.ownsSkin("cat.yellow"))
         XCTAssertFalse(store.ownsSkin("cat.grayTabby"))
         XCTAssertFalse(store.ownsSkin("cat.calico"))
         XCTAssertFalse(store.ownsSkin("cat.black"))
         XCTAssertFalse(store.ownsSkin("cat.siamese"))
-        XCTAssertTrue(PetCatalog.cat.skins.dropFirst().allSatisfy { $0.price > 0 })
+        XCTAssertTrue(
+            PetCatalog.cat.skins
+                .filter { $0.id != "cat.classic" && $0.id != "cat.yellow" }
+                .allSatisfy { $0.price > 0 }
+        )
+    }
+
+    func testYellowCatOfficialDefaultsUseBakedStateArtwork() {
+        let configuration = PetVisualDefaults.cat(skinID: "cat.yellow")
+
+        XCTAssertTrue(configuration.resolvedBottomPetEnabled)
+        for state in PetVisualState.allCases {
+            XCTAssertNil(configuration.configuration(for: state).eyes)
+        }
+        XCTAssertEqual(
+            configuration.configuration(for: .normal).baseOffset,
+            NormalizedVisualOffset(x: 0, y: 0.1515151515151515)
+        )
+        XCTAssertEqual(
+            configuration.configuration(for: .happy).baseOffset,
+            NormalizedVisualOffset(x: 0.015151515151515152, y: 0.16666666666666663)
+        )
+        for state in PetVisualState.allCases {
+            XCTAssertEqual(configuration.configuration(for: state).resolvedBaseScale, 1.1)
+        }
     }
 
     func testSiameseOfficialDefaultsMatchApprovedEditorPlacement() throws {
@@ -121,8 +363,6 @@ final class PetCustomizationStoreTests: XCTestCase {
         let normal = try XCTUnwrap(configuration.configuration(for: .normal).eyes)
         let happy = try XCTUnwrap(configuration.configuration(for: .happy).eyes)
         let scared = try XCTUnwrap(configuration.configuration(for: .scared).eyes)
-        let sleeping = try XCTUnwrap(configuration.configuration(for: .sleeping).eyes)
-        let eating = try XCTUnwrap(configuration.configuration(for: .eating).eyes)
 
         XCTAssertEqual(normal.center.x, 0.43367266414141414)
         XCTAssertEqual(normal.center.y, 0.3266256313131313)
@@ -130,20 +370,17 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(happy.center.y, 0.35108901515151514)
         XCTAssertEqual(scared.center.x, 0.4321338383838384)
         XCTAssertEqual(scared.center.y, 0.3512863005050505)
-        XCTAssertEqual(sleeping.center.x, 0.43406723484848486)
-        XCTAssertEqual(sleeping.center.y, 0.3385022095959596)
-        XCTAssertEqual(eating.kind, .eating)
-        XCTAssertEqual(eating.center.x, normal.center.x)
-        XCTAssertEqual(eating.center.y, normal.center.y)
         XCTAssertEqual(normal.spacing, -2.8)
         XCTAssertEqual(happy.spacing, -2.8)
         XCTAssertEqual(scared.scale, 0.743798828125)
         XCTAssertEqual(scared.spacing, -0.1447265625000007)
-        XCTAssertEqual(sleeping.spacing, -2.8)
+        XCTAssertNil(configuration.configuration(for: .sleeping).eyes)
         XCTAssertEqual(
             configuration.configuration(for: .sleeping).baseOffset,
             NormalizedVisualOffset(x: 0, y: 0.16666666666666657)
         )
+        XCTAssertNil(configuration.configuration(for: .eating).eyes)
+        XCTAssertNil(configuration.configuration(for: .hungry).eyes)
     }
 
     func testOrangeTabbyOfficialDefaultsMatchApprovedEditorPlacement() throws {
@@ -151,9 +388,6 @@ final class PetCustomizationStoreTests: XCTestCase {
         let normal = try XCTUnwrap(configuration.configuration(for: .normal).eyes)
         let happy = try XCTUnwrap(configuration.configuration(for: .happy).eyes)
         let scared = try XCTUnwrap(configuration.configuration(for: .scared).eyes)
-        let sleeping = try XCTUnwrap(configuration.configuration(for: .sleeping).eyes)
-        let eating = try XCTUnwrap(configuration.configuration(for: .eating).eyes)
-        let hungry = try XCTUnwrap(configuration.configuration(for: .hungry).eyes)
 
         XCTAssertEqual(normal.center.x, 0.49242424242424243)
         XCTAssertEqual(normal.center.y, 0.3181818181818182)
@@ -166,13 +400,13 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(scared.scale, 0.841021369485294)
         XCTAssertEqual(scared.spacing, -0.8755974264705877)
         XCTAssertEqual(scared.resolvedColorMode, .black)
-        XCTAssertEqual(sleeping.kind, .sleeping)
+        XCTAssertNil(configuration.configuration(for: .sleeping).eyes)
         XCTAssertEqual(
             configuration.configuration(for: .sleeping).baseOffset,
             NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
         )
-        XCTAssertEqual(eating.kind, .eating)
-        XCTAssertEqual(hungry.kind, .hungry)
+        XCTAssertNil(configuration.configuration(for: .eating).eyes)
+        XCTAssertNil(configuration.configuration(for: .hungry).eyes)
     }
 
     func testGrayTabbyOfficialDefaultsMatchApprovedEditorPlacement() throws {
@@ -180,9 +414,6 @@ final class PetCustomizationStoreTests: XCTestCase {
         let normal = try XCTUnwrap(configuration.configuration(for: .normal).eyes)
         let happy = try XCTUnwrap(configuration.configuration(for: .happy).eyes)
         let scared = try XCTUnwrap(configuration.configuration(for: .scared).eyes)
-        let sleeping = try XCTUnwrap(configuration.configuration(for: .sleeping).eyes)
-        let eating = try XCTUnwrap(configuration.configuration(for: .eating).eyes)
-        let hungry = try XCTUnwrap(configuration.configuration(for: .hungry).eyes)
 
         XCTAssertEqual(normal.center.x, 0.46894728535353536)
         XCTAssertEqual(normal.center.y, 0.19986979166666666)
@@ -195,13 +426,13 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(scared.center.y, 0.22492503156565657)
         XCTAssertEqual(scared.scale, 0.7711827895220588)
         XCTAssertEqual(scared.spacing, 0.3169577205882348)
-        XCTAssertEqual(sleeping.kind, .sleeping)
+        XCTAssertNil(configuration.configuration(for: .sleeping).eyes)
         XCTAssertEqual(
             configuration.configuration(for: .sleeping).baseOffset,
             NormalizedVisualOffset(x: 0, y: 0.06060606060606061)
         )
-        XCTAssertEqual(eating.kind, .eating)
-        XCTAssertEqual(hungry.kind, .hungry)
+        XCTAssertNil(configuration.configuration(for: .eating).eyes)
+        XCTAssertNil(configuration.configuration(for: .hungry).eyes)
     }
 
     func testCalicoAndBlackOfficialDefaultsUseApprovedLayouts() throws {
@@ -214,10 +445,12 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(calicoNormal.resolvedPupilScale, 0.6925551470588235)
         XCTAssertEqual(calicoEating.resolvedOuterEyeScale, 0.917580997242647)
         XCTAssertEqual(calicoEating.resolvedPupilScale, 0.641802619485294)
+        XCTAssertNil(calico.configuration(for: .sleeping).eyes)
         XCTAssertEqual(
             calico.configuration(for: .sleeping).baseOffset,
             NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
         )
+        XCTAssertNil(calico.configuration(for: .hungry).eyes)
 
         let black = PetVisualDefaults.cat(skinID: "cat.black")
         let blackHappy = try XCTUnwrap(black.configuration(for: .happy).eyes)
@@ -227,10 +460,13 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(blackHappy.spacing, -1.2708180147058812)
         XCTAssertEqual(blackScared.scale, 0.6742446001838235)
         XCTAssertEqual(blackScared.spacing, 0.5226102941176496)
+        XCTAssertNil(black.configuration(for: .sleeping).eyes)
         XCTAssertEqual(
             black.configuration(for: .sleeping).baseOffset,
             NormalizedVisualOffset(x: 0, y: 0.20454545454545442)
         )
+        XCTAssertNil(black.configuration(for: .eating).eyes)
+        XCTAssertNil(black.configuration(for: .hungry).eyes)
     }
 
     func testScaredExpressionUsesDedicatedVisualStateAndOfficialEyes() throws {
@@ -450,6 +686,15 @@ final class PetCustomizationStoreTests: XCTestCase {
         XCTAssertNil(configuration.rightEyeOffset)
     }
 
+    func testCatDefaultEyeModuleUsesRoundEyesAndTracksThePointer() {
+        let configuration = PetEyeModuleConfiguration(kind: .catDefault)
+
+        XCTAssertEqual(configuration.eyeStyles(for: .calm).left, .round)
+        XCTAssertEqual(configuration.eyeStyles(for: .calm).right, .round)
+        XCTAssertTrue(configuration.followsMouse(for: .calm))
+        XCTAssertTrue(configuration.allowsBlinking)
+    }
+
     func testSkinOffsetSupportsLegacyDataAndRoundTrip() throws {
         let legacyData = Data(#"{"base":{"officialSkin":{}}}"#.utf8)
         var configuration = try JSONDecoder().decode(
@@ -459,6 +704,8 @@ final class PetCustomizationStoreTests: XCTestCase {
 
         XCTAssertNil(configuration.baseOffset)
         configuration.baseOffset = NormalizedVisualOffset(x: -0.1, y: 0.2)
+        XCTAssertEqual(configuration.resolvedBaseScale, 1)
+        configuration.baseScale = 1.15
 
         let roundTripData = try JSONEncoder().encode(configuration)
         let decoded = try JSONDecoder().decode(
@@ -466,6 +713,7 @@ final class PetCustomizationStoreTests: XCTestCase {
             from: roundTripData
         )
         XCTAssertEqual(decoded.baseOffset, NormalizedVisualOffset(x: -0.1, y: 0.2))
+        XCTAssertEqual(decoded.baseScale, 1.15)
     }
 
     private var fixturePNGURL: URL {

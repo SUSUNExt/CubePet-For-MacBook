@@ -5,6 +5,7 @@ import Foundation
 final class PetCustomizationStore: ObservableObject {
     @Published private(set) var visualOverrides: [String: PetVisualConfiguration] = [:]
     @Published private(set) var customPets: [CustomPetDefinition] = []
+    @Published private(set) var eyePresets: [PetEyePreset] = []
 
     private let fileManager: FileManager
     private let configurationFileURL: URL?
@@ -56,11 +57,87 @@ final class PetCustomizationStore: ObservableObject {
         assetStore?.existingURL(for: assetID)
     }
 
-    func importPNG(from sourceURL: URL) throws -> String {
+    func importedVisualAsset(for assetID: String) -> PetImportedVisualAsset? {
+        assetStore?.visualAsset(for: assetID)
+    }
+
+    func importVisualAsset(from sourceURLs: [URL]) throws -> String {
         guard let assetStore else {
             throw PetCustomizationStoreError.applicationSupportUnavailable
         }
-        return try assetStore.importPNG(from: sourceURL)
+        return try assetStore.importVisualAsset(from: sourceURLs)
+    }
+
+    func importPNG(from sourceURL: URL) throws -> String {
+        try importVisualAsset(from: [sourceURL])
+    }
+
+    func reorderFrames(assetID: String, from sourceIndex: Int, to destinationIndex: Int) throws {
+        guard let assetStore else {
+            throw PetCustomizationStoreError.applicationSupportUnavailable
+        }
+        try assetStore.reorderFrames(
+            assetID: assetID,
+            from: sourceIndex,
+            to: destinationIndex
+        )
+    }
+
+    func removeFrame(assetID: String, at index: Int) throws {
+        guard let assetStore else {
+            throw PetCustomizationStoreError.applicationSupportUnavailable
+        }
+        try assetStore.removeFrame(assetID: assetID, at: index)
+    }
+
+    func importEyePreset(from sourceURL: URL) throws -> PetEyePreset {
+        guard let assetStore else {
+            throw PetCustomizationStoreError.applicationSupportUnavailable
+        }
+
+        let assetID = try assetStore.importVisualAsset(from: [sourceURL])
+        let filename = sourceURL.deletingPathExtension().lastPathComponent
+        let preset = PetEyePreset(
+            name: filename.isEmpty ? "Custom Eye" : filename,
+            assetID: assetID
+        )
+        eyePresets.append(preset)
+
+        do {
+            try persistDocument()
+            return preset
+        } catch {
+            eyePresets.removeAll { $0.id == preset.id }
+            try? assetStore.removeAsset(id: assetID)
+            throw error
+        }
+    }
+
+    func deleteEyePreset(id: String) throws {
+        guard let index = eyePresets.firstIndex(where: { $0.id == id }) else { return }
+        let removedPreset = eyePresets.remove(at: index)
+
+        do {
+            try persistDocument()
+            removeUnusedAssets(from: [removedPreset.assetID])
+        } catch {
+            eyePresets.insert(removedPreset, at: index)
+            throw error
+        }
+    }
+
+    func renameEyePreset(id: String, name: String) throws {
+        guard let index = eyePresets.firstIndex(where: { $0.id == id }) else { return }
+        let normalizedName = try Self.normalizedEyePresetName(name)
+        let previousPreset = eyePresets[index]
+        eyePresets[index].name = normalizedName
+
+        do {
+            try persistDocument()
+        } catch {
+            eyePresets[index] = previousPreset
+            throw error
+        }
     }
 
     @discardableResult
@@ -171,6 +248,7 @@ final class PetCustomizationStore: ObservableObject {
         {
             visualOverrides = document.visualOverrides
             customPets = document.customPets.filter { $0.id.hasPrefix("custom:") }
+            eyePresets = document.eyePresets.filter { $0.id.hasPrefix("eye:") }
             return
         }
 
@@ -198,7 +276,8 @@ final class PetCustomizationStore: ObservableObject {
 
         let document = PetCustomizationDocument(
             visualOverrides: visualOverrides,
-            customPets: customPets
+            customPets: customPets,
+            eyePresets: eyePresets
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -230,8 +309,11 @@ final class PetCustomizationStore: ObservableObject {
         let overrideAssets = visualOverrides.values.reduce(into: Set<String>()) {
             $0.formUnion($1.referencedAssetIDs)
         }
-        return customPets.reduce(into: overrideAssets) {
+        let customPetAssets = customPets.reduce(into: overrideAssets) {
             $0.formUnion($1.referencedAssetIDs)
+        }
+        return eyePresets.reduce(into: customPetAssets) {
+            $0.insert($1.assetID)
         }
     }
 
@@ -252,20 +334,49 @@ final class PetCustomizationStore: ObservableObject {
         }
         return normalized
     }
+
+    private static func normalizedEyePresetName(_ name: String) throws -> String {
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty, normalized.count <= 40 else {
+            throw PetCustomizationStoreError.invalidEyePresetName
+        }
+        return normalized
+    }
 }
 
 private struct PetCustomizationDocument: Codable {
     let schemaVersion: Int
     var visualOverrides: [String: PetVisualConfiguration]
     var customPets: [CustomPetDefinition]
+    var eyePresets: [PetEyePreset]
 
     init(
         visualOverrides: [String: PetVisualConfiguration],
-        customPets: [CustomPetDefinition]
+        customPets: [CustomPetDefinition],
+        eyePresets: [PetEyePreset]
     ) {
-        schemaVersion = 1
+        schemaVersion = 2
         self.visualOverrides = visualOverrides
         self.customPets = customPets
+        self.eyePresets = eyePresets
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case visualOverrides
+        case customPets
+        case eyePresets
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        visualOverrides = try container.decodeIfPresent(
+            [String: PetVisualConfiguration].self,
+            forKey: .visualOverrides
+        ) ?? [:]
+        customPets = try container.decodeIfPresent([CustomPetDefinition].self, forKey: .customPets) ?? []
+        eyePresets = try container.decodeIfPresent([PetEyePreset].self, forKey: .eyePresets) ?? []
     }
 }
 
@@ -275,6 +386,7 @@ enum PetCustomizationStoreError: LocalizedError {
     case customPetNotFound
     case assetNotFound(String)
     case defaultImageRequired
+    case invalidEyePresetName
 
     var errorDescription: String? {
         switch self {
@@ -288,6 +400,8 @@ enum PetCustomizationStoreError: LocalizedError {
             return "The imported image could not be found: \(assetID)"
         case .defaultImageRequired:
             return "A default-state PNG image is required."
+        case .invalidEyePresetName:
+            return "The eye preset name must contain 1 to 40 characters."
         }
     }
 }

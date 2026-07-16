@@ -35,6 +35,7 @@ final class PetPhysicsController {
     var onGrab: (() -> Void)?
     var onLand: (() -> Void)?
     var isMouseGazeEnabled: (() -> Bool)?
+    var isBottomPetEnabled: (() -> Bool)?
     var isUsingInputEventTap: Bool {
         inputEventTap != nil
     }
@@ -173,6 +174,8 @@ final class PetPhysicsController {
             velocity.dx *= 0.25
             velocity.dy *= 0.25
             onClick?()
+        } else if isBottomPetEnabled?() == true {
+            velocity = CGVector(dx: 0, dy: 0)
         } else {
             velocity.dx = releaseVelocity.dx * 1.08
             velocity.dy = releaseVelocity.dy * 1.08
@@ -282,12 +285,16 @@ final class PetPhysicsController {
 
         position = window.frame.origin
 
+        let bottomPetEnabled = isBottomPetEnabled?() == true
         if let dragTargetOrigin {
             let spring = CGFloat(72)
             let damping = CGFloat(13)
             var acceleration = CGVector(dx: 0, dy: -1_850)
             acceleration.dx += (dragTargetOrigin.x - position.x) * spring - velocity.dx * damping
-            acceleration.dy += (dragTargetOrigin.y - position.y) * spring - velocity.dy * damping
+            // Bottom pets keep the standard physics and floor collision. Only
+            // the user's vertical drag target is ignored.
+            let verticalTarget = bottomPetEnabled ? position.y : dragTargetOrigin.y
+            acceleration.dy += (verticalTarget - position.y) * spring - velocity.dy * damping
             velocity.dx += acceleration.dx * dt
             velocity.dy += acceleration.dy * dt
         } else {

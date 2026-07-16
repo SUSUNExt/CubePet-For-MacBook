@@ -41,8 +41,12 @@ final class PetProgressStore: ObservableObject {
         // Preserve selections made by users of versions released before the shop existed.
         ownedPetIDs.formUnion(PetCatalog.pets.map(\.id))
         ownedPetIDs.insert(selectedPetID)
-        ownedSkinIDs.insert(PetCatalog.cube.skins[0].id)
-        ownedSkinIDs.insert(PetCatalog.cat.skins[0].id)
+        ownedSkinIDs.formUnion(
+            PetCatalog.pets
+                .flatMap(\.skins)
+                .filter { $0.price == 0 }
+                .map(\.id)
+        )
         ownedSkinIDs.insert(selectedSkinID)
         for petID in ownedPetIDs {
             if let firstSkinID = PetCatalog.pet(id: petID)?.skins.first?.id {

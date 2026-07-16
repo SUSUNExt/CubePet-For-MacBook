@@ -21,6 +21,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
     private let feedSettings = FeedSettings()
     private let languageSettings = LanguageSettings()
     private let appearanceSettings = PetAppearanceSettings()
+    private let menuStyleSettings = MenuStyleSettings()
     private let shortcutSettings = ShortcutSettings()
     private let launchAtLoginController = LaunchAtLoginController()
 
@@ -106,6 +107,27 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
         physicsController.isMouseGazeEnabled = { [weak petState] in
             petState?.allowsMouseGaze == true && !hungerStore.isHungry
         }
+        physicsController.isBottomPetEnabled = { [appearanceSettings = self.appearanceSettings, customizationStore] in
+            if appearanceSettings.selectedPetID == PetCatalog.cat.id,
+               appearanceSettings.selectedSkinID == "cat.yellow" {
+                return true
+            }
+
+            if let customPet = customizationStore.customPet(id: appearanceSettings.selectedPetID) {
+                return customPet.visualConfiguration.resolvedBottomPetEnabled
+            }
+
+            let official = PetVisualDefaults.configuration(
+                petID: appearanceSettings.selectedPetID,
+                skinID: appearanceSettings.selectedSkinID
+            )
+            return customizationStore.visualConfiguration(
+                petID: appearanceSettings.selectedPetID,
+                skinID: appearanceSettings.selectedSkinID,
+                official: official
+            )
+            .resolvedBottomPetEnabled
+        }
         physicsController.onClick = { [petState] in
             petState.reactToClick(isHungry: hungerStore.isHungry)
         }
@@ -151,6 +173,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             progressStore: progressStore,
             hungerStore: hungerStore,
             appearanceSettings: appearanceSettings,
+            menuStyleSettings: menuStyleSettings,
             customizationStore: customizationStore,
             featureEntitlementStore: featureEntitlementStore,
             shortcutSettings: shortcutSettings,
@@ -396,4 +419,5 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             index += 1
         }
     }
+
 }

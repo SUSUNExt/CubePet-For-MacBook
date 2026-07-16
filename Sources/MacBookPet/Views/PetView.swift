@@ -1,5 +1,10 @@
 import SwiftUI
 
+private struct ActiveActionPlayback: Equatable {
+    let assetID: String
+    let state: PetVisualState
+}
+
 struct PetView: View {
     @ObservedObject var state: PetState
     @ObservedObject var motionState: PetMotionState
@@ -9,13 +14,21 @@ struct PetView: View {
     @ObservedObject var languageSettings: LanguageSettings
 
     @State private var isPressed = false
+    @State private var activeActionPlayback: ActiveActionPlayback?
+    @State private var actionPlaybackTask: Task<Void, Never>?
 
     var body: some View {
         TimelineView(.animation) { timeline in
             let expression = visualExpression
             let isSleeping = expression == .sleeping
             let isListening = expression == .listening
-            let breathScale = sleepingBreathScale(at: timeline.date, isSleeping: isSleeping)
+            let sleepingConfiguration = activeVisualConfiguration.configuration(for: .sleeping)
+            let sleepingBreathEnabled = sleepingConfiguration.resolvedSleepingBreathEnabled
+                && supportsSleepingBreath(for: sleepingConfiguration)
+            let breathScale = sleepingBreathScale(
+                at: timeline.date,
+                isSleeping: isSleeping && sleepingBreathEnabled
+            )
             let listeningMotion = listeningMotion(at: timeline.date, isListening: isListening)
 
             ZStack(alignment: .bottomLeading) {
@@ -68,6 +81,14 @@ struct PetView: View {
                 }
             }
         }
+        .onAppear(perform: restartActionPlaybackLoop)
+        .onDisappear {
+            actionPlaybackTask?.cancel()
+            actionPlaybackTask = nil
+        }
+        .onChange(of: activeVisualConfiguration) { _, _ in
+            restartActionPlaybackLoop()
+        }
         .frame(width: PetMetrics.canvasWidth, height: PetMetrics.canvasHeight)
     }
 
@@ -81,25 +102,47 @@ struct PetView: View {
         let stateConfiguration = configuration.configuration(
             for: visualState
         )
+        let appliesVerticalBaseOffsetInView = true
+        let customEyeAsset = stateConfiguration.eyes?.customAssetID.flatMap {
+            customizationStore.importedVisualAsset(for: $0)
+        }
 
         return ZStack {
-            if case let .importedAsset(assetID) = stateConfiguration.base {
+            if let action = activeActionPlayback, action.state == visualState {
                 ImportedPetVisualView(
-                    imageURL: customizationStore.assetURL(for: assetID),
+                    asset: customizationStore.importedVisualAsset(for: action.assetID),
                     baseOffset: stateConfiguration.baseOffset,
+                    animationPlaybackRate: stateConfiguration.actionAnimationPlaybackRate,
                     configuration: stateConfiguration.eyes,
                     expression: expression,
                     isBlinking: state.isBlinking,
-                    gazeOffset: motionState.gazeOffset
+                    gazeOffset: motionState.gazeOffset,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
+                )
+            } else if case let .importedAsset(assetID) = stateConfiguration.base {
+                ImportedPetVisualView(
+                    asset: customizationStore.importedVisualAsset(for: assetID),
+                    baseOffset: stateConfiguration.baseOffset,
+                    animationPlaybackRate: stateConfiguration.animationPlaybackRate,
+                    configuration: stateConfiguration.eyes,
+                    expression: expression,
+                    isBlinking: state.isBlinking,
+                    gazeOffset: motionState.gazeOffset,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
                 )
             } else if appearanceSettings.isCustomPetSelected {
                 ImportedPetVisualView(
-                    imageURL: nil,
+                    asset: nil,
                     baseOffset: stateConfiguration.baseOffset,
+                    animationPlaybackRate: stateConfiguration.animationPlaybackRate,
                     configuration: stateConfiguration.eyes,
                     expression: expression,
                     isBlinking: state.isBlinking,
-                    gazeOffset: motionState.gazeOffset
+                    gazeOffset: motionState.gazeOffset,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
                 )
             } else {
                 switch appearanceSettings.selectedPet.visualKind {
@@ -110,7 +153,9 @@ struct PetView: View {
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
-                    visualConfiguration: configuration
+                    visualConfiguration: configuration,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
                 )
             case .frog:
                 FrogPetView(
@@ -118,7 +163,9 @@ struct PetView: View {
                     isBlinking: state.isBlinking,
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
-                    visualConfiguration: configuration
+                    visualConfiguration: configuration,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
                 )
             case .cat:
                 CatPetView(
@@ -127,13 +174,16 @@ struct PetView: View {
                     gazeOffset: motionState.gazeOffset,
                     mouthOpen: mouthOpen,
                     skinID: appearanceSettings.selectedSkinID,
-                    visualConfiguration: configuration
+                    visualConfiguration: configuration,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
                 )
                 }
             }
         }
         .frame(width: PetMetrics.bodyContentSize, height: PetMetrics.bodyContentSize)
         .padding(PetMetrics.bodyPadding)
+        .scaleEffect(CGFloat(stateConfiguration.resolvedBaseScale), anchor: .bottom)
         .scaleEffect(isPressed ? 0.96 : 1)
         .scaleEffect(x: motionState.stretchX, y: motionState.stretchY)
         .scaleEffect(x: 1, y: breathScale, anchor: .bottom)
@@ -166,6 +216,50 @@ struct PetView: View {
         )
     }
 
+    private func restartActionPlaybackLoop() {
+        actionPlaybackTask?.cancel()
+        actionPlaybackTask = nil
+        activeActionPlayback = nil
+
+        actionPlaybackTask = Task {
+            while !Task.isCancelled {
+                let expression = visualExpression
+                let visualState: PetVisualState = motionState.feedMouthOpen > 0.02
+                    ? .eating
+                    : PetVisualState(expression: expression)
+                let configuration = activeVisualConfiguration.configuration(for: visualState)
+                let actionAssetIDs = configuration.resolvedActionAssetIDs
+                guard !actionAssetIDs.isEmpty else { return }
+
+                let delay = randomActionDelay(for: configuration.resolvedActionFrequency)
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled,
+                      let actionAssetID = actionAssetIDs.randomElement(),
+                      let asset = customizationStore.importedVisualAsset(for: actionAssetID)
+                else { continue }
+
+                activeActionPlayback = ActiveActionPlayback(
+                    assetID: actionAssetID,
+                    state: visualState
+                )
+                try? await Task.sleep(
+                    nanoseconds: UInt64(asset.playbackDuration * 1_000_000_000)
+                )
+                if !Task.isCancelled {
+                    activeActionPlayback = nil
+                }
+            }
+        }
+    }
+
+    private func randomActionDelay(for frequency: PetActionFrequency) -> TimeInterval {
+        switch frequency {
+        case .low: Double.random(in: 18...30)
+        case .medium: Double.random(in: 10...18)
+        case .high: Double.random(in: 4...8)
+        }
+    }
+
     static func visualExpression(
         base expression: PetExpression,
         isHungry: Bool,
@@ -191,6 +285,7 @@ struct PetView: View {
             return switch appearanceSettings.selectedSkinID {
             case "cat.grayTabby": 15.4
             case "cat.calico": 11.4
+            case "cat.yellow": 12.6
             default: 10.8
             }
         }
@@ -201,6 +296,11 @@ struct PetView: View {
 
         let wave = (sin(date.timeIntervalSinceReferenceDate * 1.55) + 1) / 2
         return 0.94 + CGFloat(wave) * 0.08
+    }
+
+    private func supportsSleepingBreath(for configuration: PetStateVisualConfiguration) -> Bool {
+        guard case let .importedAsset(assetID) = configuration.base else { return true }
+        return customizationStore.importedVisualAsset(for: assetID)?.supportsSleepingBreath == true
     }
 
     private func listeningMotion(at date: Date, isListening: Bool) -> (x: CGFloat, y: CGFloat, rotation: CGFloat) {

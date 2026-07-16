@@ -86,7 +86,7 @@ enum PetExpression: CaseIterable {
     }
 }
 
-enum EyeStyle {
+enum EyeStyle: Equatable {
     case round
     case largeRound
     case smallRound

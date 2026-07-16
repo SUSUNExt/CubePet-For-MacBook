@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TrackingEyesView: View {
@@ -6,28 +7,46 @@ struct TrackingEyesView: View {
     let isBlinking: Bool
     let gazeOffset: CGSize
     var additionalOffset: CGSize = .zero
+    var customEyeAsset: PetImportedVisualAsset? = nil
 
     var body: some View {
-        EyePairLayout(
-            configuration: configuration,
-            additionalOffset: CGSize(
-                width: effectiveGaze.width + additionalOffset.width,
-                height: effectiveGaze.height + additionalOffset.height
-            )
-        ) {
-            EyeView(
-                style: eyeStyles.left,
-                isBlinking: effectiveBlinking,
-                color: eyeColor
-            )
-            .scaleEffect(eyeLayerScale)
-        } rightEye: {
-            EyeView(
-                style: eyeStyles.right,
-                isBlinking: effectiveBlinking,
-                color: eyeColor
-            )
-            .scaleEffect(eyeLayerScale)
+        Group {
+            if let customEyeAsset {
+                CustomEyePairView(
+                    asset: customEyeAsset,
+                    configuration: configuration,
+                    additionalOffset: additionalOffset
+                )
+            } else if configuration.kind == .catDefault {
+                DefaultCatEyePairView(
+                    configuration: configuration,
+                    isBlinking: effectiveBlinking,
+                    gazeOffset: effectiveGaze,
+                    additionalOffset: additionalOffset
+                )
+            } else {
+                EyePairLayout(
+                    configuration: configuration,
+                    additionalOffset: CGSize(
+                        width: effectiveGaze.width + additionalOffset.width,
+                        height: effectiveGaze.height + additionalOffset.height
+                    )
+                ) {
+                    EyeView(
+                        style: eyeStyles.left,
+                        isBlinking: effectiveBlinking,
+                        color: eyeColor
+                    )
+                    .scaleEffect(eyeLayerScale)
+                } rightEye: {
+                    EyeView(
+                        style: eyeStyles.right,
+                        isBlinking: effectiveBlinking,
+                        color: eyeColor
+                    )
+                    .scaleEffect(eyeLayerScale)
+                }
+            }
         }
         .animation(.easeOut(duration: 0.10), value: gazeOffset)
     }
@@ -58,6 +77,75 @@ struct TrackingEyesView: View {
         case .automatic, .white:
             CGFloat(configuration.resolvedOuterEyeScale)
         }
+    }
+}
+
+/// The cat's standard wide eyes, available to imported custom pets as a reusable module.
+private struct DefaultCatEyePairView: View {
+    let configuration: PetEyeModuleConfiguration
+    let isBlinking: Bool
+    let gazeOffset: CGSize
+    let additionalOffset: CGSize
+
+    var body: some View {
+        EyePairLayout(configuration: configuration, additionalOffset: additionalOffset) {
+            catEye
+        } rightEye: {
+            catEye
+        }
+    }
+
+    private var catEye: some View {
+        ZStack {
+            Circle()
+                .fill(.white)
+                .frame(width: 9.2, height: 9.2)
+                .scaleEffect(CGFloat(configuration.resolvedOuterEyeScale))
+
+            if isBlinking {
+                Capsule(style: .continuous)
+                    .fill(.black)
+                    .frame(width: 9, height: 2)
+            } else {
+                Circle()
+                    .fill(.black)
+                    .frame(width: 5.6, height: 5.6)
+                    .scaleEffect(CGFloat(configuration.resolvedPupilScale))
+                    .offset(gazeOffset)
+                    .animation(.easeOut(duration: 0.10), value: gazeOffset)
+            }
+        }
+        .frame(width: 14, height: 14)
+    }
+}
+
+struct CustomEyePairView: View {
+    let asset: PetImportedVisualAsset
+    let configuration: PetEyeModuleConfiguration
+    var additionalOffset: CGSize = .zero
+
+    var body: some View {
+        EyePairLayout(configuration: configuration, additionalOffset: additionalOffset) {
+            eyeImage
+        } rightEye: {
+            eyeImage
+        }
+    }
+
+    private var eyeImage: some View {
+        Group {
+            if let image = NSImage(contentsOf: asset.imageURL) {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+            } else {
+                Image(systemName: "eye")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 16, height: 16)
+        .scaleEffect(CGFloat(configuration.resolvedPupilScale))
     }
 }
 

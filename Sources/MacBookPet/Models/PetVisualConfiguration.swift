@@ -29,8 +29,16 @@ enum PetBaseVisualSource: Equatable, Codable {
     case importedAsset(id: String)
 }
 
+enum PetActionFrequency: String, CaseIterable, Codable {
+    case low
+    case medium
+    case high
+}
+
 enum PetEyeModuleKind: String, CaseIterable, Codable {
     case expressionDriven
+    /// The white sclera and pupil pair used by the default cat appearance.
+    case catDefault
     case tracking
     case happy
     case scared
@@ -70,6 +78,8 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
     var colorMode: PetEyeColorMode?
     var outerEyeScale: Double?
     var pupilScale: Double?
+    /// A user-imported eye image, rendered as a pair instead of an official eye style.
+    var customAssetID: String?
 
     init(
         kind: PetEyeModuleKind,
@@ -81,7 +91,8 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
         rightEyeOffset: NormalizedVisualOffset? = nil,
         colorMode: PetEyeColorMode? = nil,
         outerEyeScale: Double? = nil,
-        pupilScale: Double? = nil
+        pupilScale: Double? = nil,
+        customAssetID: String? = nil
     ) {
         self.kind = kind
         self.center = center
@@ -93,6 +104,7 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
         self.colorMode = colorMode
         self.outerEyeScale = outerEyeScale
         self.pupilScale = pupilScale
+        self.customAssetID = customAssetID
     }
 
     var resolvedColorMode: PetEyeColorMode {
@@ -125,6 +137,8 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
         switch kind {
         case .expressionDriven:
             return (expression.leftEye, expression.rightEye)
+        case .catDefault:
+            return (.round, .round)
         case .tracking:
             return (.round, .round)
         case .happy:
@@ -144,6 +158,8 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
         switch kind {
         case .expressionDriven:
             return expression.allowsMouseGaze
+        case .catDefault:
+            return true
         case .tracking:
             return true
         case .happy, .scared, .sleeping, .eating, .hungry:
@@ -153,7 +169,7 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
 
     var allowsBlinking: Bool {
         switch kind {
-        case .expressionDriven, .tracking:
+        case .expressionDriven, .catDefault, .tracking:
             return true
         case .happy, .scared, .sleeping, .eating, .hungry:
             return false
@@ -165,13 +181,57 @@ struct PetStateVisualConfiguration: Equatable, Codable {
     var base: PetBaseVisualSource
     var eyes: PetEyeModuleConfiguration?
     var baseOffset: NormalizedVisualOffset? = nil
+    /// A runtime display multiplier. It is saved with the layout but never
+    /// changes the imported image file itself.
+    var baseScale: Double? = nil
+    /// `nil` preserves the normal speed.  Kept on the state so each pet mood can
+    /// use a different animation tempo without changing the imported asset.
+    var animationPlaybackRate: Double? = nil
+    /// Optional short animation associated with this state. It is kept separate
+    /// from the default visual so the editor can preview it independently.
+    var actionAssetID: String? = nil
+    var actionAnimationPlaybackRate: Double? = nil
+    /// Replaces the legacy single action slot when the user adds more than one.
+    var actionAssetIDs: [String]? = nil
+    var actionFrequency: PetActionFrequency? = nil
+    /// `nil` keeps the default breathing effect enabled for compatibility with
+    /// existing custom pets that were saved before this setting was introduced.
+    var sleepingBreathEnabled: Bool? = nil
+
+    var resolvedActionAssetIDs: [String] {
+        actionAssetIDs ?? actionAssetID.map { [$0] } ?? []
+    }
+
+    var resolvedActionFrequency: PetActionFrequency {
+        actionFrequency ?? .medium
+    }
+
+    var resolvedSleepingBreathEnabled: Bool {
+        sleepingBreathEnabled ?? true
+    }
+
+    var resolvedBaseScale: Double {
+        min(max(baseScale ?? 1, 0.5), 2)
+    }
+
+    mutating func appendActionAsset(_ assetID: String) {
+        var assetIDs = resolvedActionAssetIDs
+        assetIDs.append(assetID)
+        actionAssetIDs = assetIDs
+        actionAssetID = nil
+    }
 }
 
 struct PetVisualConfiguration: Equatable, Codable {
     private var states: [PetVisualState: PetStateVisualConfiguration]
+    private var bottomPetEnabled: Bool?
 
-    init(states: [PetVisualState: PetStateVisualConfiguration]) {
+    init(
+        states: [PetVisualState: PetStateVisualConfiguration],
+        bottomPetEnabled: Bool? = nil
+    ) {
         self.states = states
+        self.bottomPetEnabled = bottomPetEnabled
     }
 
     func configuration(for state: PetVisualState) -> PetStateVisualConfiguration {
@@ -179,12 +239,26 @@ struct PetVisualConfiguration: Equatable, Codable {
     }
 
     var referencedAssetIDs: Set<String> {
-        Set(
-            states.values.compactMap { state in
-                guard case let .importedAsset(id) = state.base else { return nil }
-                return id
+        states.values.reduce(into: Set<String>()) { assetIDs, state in
+            if case let .importedAsset(id) = state.base {
+                assetIDs.insert(id)
             }
-        )
+            if let actionAssetID = state.actionAssetID {
+                assetIDs.insert(actionAssetID)
+            }
+            assetIDs.formUnion(state.actionAssetIDs ?? [])
+            if let customEyeAssetID = state.eyes?.customAssetID {
+                assetIDs.insert(customEyeAssetID)
+            }
+        }
+    }
+
+    var resolvedBottomPetEnabled: Bool {
+        bottomPetEnabled ?? false
+    }
+
+    mutating func setBottomPetEnabled(_ isEnabled: Bool) {
+        bottomPetEnabled = isEnabled
     }
 
     mutating func setConfiguration(
@@ -201,6 +275,9 @@ struct PetVisualConfiguration: Equatable, Codable {
 
     func fillingMissingStates(from defaults: PetVisualConfiguration) -> PetVisualConfiguration {
         var result = self
+        if result.bottomPetEnabled == nil {
+            result.bottomPetEnabled = defaults.bottomPetEnabled
+        }
         for state in PetVisualState.allCases where result.states[state] == nil {
             result.states[state] = defaults.configuration(for: state)
         }
@@ -275,6 +352,8 @@ enum PetVisualDefaults {
             return black
         case "cat.siamese":
             return siamese
+        case "cat.yellow":
+            return yellow
         default:
             return configuration(eyeLayout: catEyeLayout(skinID: skinID))
         }
@@ -325,40 +404,16 @@ enum PetVisualDefaults {
             ),
             .sleeping: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .sleeping,
-                    center: NormalizedVisualPoint(
-                        x: 0.49242424242424243,
-                        y: 0.3181818181818182
-                    ),
-                    scale: 1,
-                    spacing: -2.8
-                ),
+                eyes: nil,
                 baseOffset: NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
             ),
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .eating,
-                    center: NormalizedVisualPoint(
-                        x: 0.49242424242424243,
-                        y: 0.3181818181818182
-                    ),
-                    scale: 1,
-                    spacing: -2.8
-                )
+                eyes: nil
             ),
             .hungry: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .hungry,
-                    center: NormalizedVisualPoint(
-                        x: 0.49242424242424243,
-                        y: 0.3181818181818182
-                    ),
-                    scale: 1,
-                    spacing: -2.8
-                )
+                eyes: nil
             )
         ]
     )
@@ -406,40 +461,16 @@ enum PetVisualDefaults {
             ),
             .sleeping: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .sleeping,
-                    center: NormalizedVisualPoint(
-                        x: 0.4727272727272727,
-                        y: 0.2393939393939394
-                    ),
-                    scale: 1,
-                    spacing: -2.8
-                ),
+                eyes: nil,
                 baseOffset: NormalizedVisualOffset(x: 0, y: 0.06060606060606061)
             ),
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .eating,
-                    center: NormalizedVisualPoint(
-                        x: 0.4727272727272727,
-                        y: 0.2393939393939394
-                    ),
-                    scale: 1,
-                    spacing: -2.8
-                )
+                eyes: nil
             ),
             .hungry: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .hungry,
-                    center: NormalizedVisualPoint(
-                        x: 0.4727272727272727,
-                        y: 0.2393939393939394
-                    ),
-                    scale: 1,
-                    spacing: -2.8
-                )
+                eyes: nil
             )
         ]
     )
@@ -476,11 +507,7 @@ enum PetVisualDefaults {
             ),
             .sleeping: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .sleeping,
-                    center: NormalizedVisualPoint(x: 0.5726996527777778, y: 0.6857244318181818),
-                    spacing: -2.8
-                ),
+                eyes: nil,
                 baseOffset: NormalizedVisualOffset(x: 0, y: 0.14393939393939387)
             ),
             .eating: PetStateVisualConfiguration(
@@ -495,11 +522,7 @@ enum PetVisualDefaults {
             ),
             .hungry: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .hungry,
-                    center: NormalizedVisualPoint(x: 0.4348484848484848, y: 0.2878787878787879),
-                    spacing: -2.8
-                )
+                eyes: nil
             )
         ]
     )
@@ -536,29 +559,16 @@ enum PetVisualDefaults {
             ),
             .sleeping: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .sleeping,
-                    center: NormalizedVisualPoint(x: 0.47149226641414144, y: 0.29987373737373735),
-                    scale: 0.7970329733455882,
-                    spacing: 0.09866727941176556
-                ),
+                eyes: nil,
                 baseOffset: NormalizedVisualOffset(x: 0, y: 0.20454545454545442)
             ),
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .eating,
-                    center: NormalizedVisualPoint(x: 0.4696969696969697, y: 0.29545454545454547),
-                    spacing: -2.8
-                )
+                eyes: nil
             ),
             .hungry: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .hungry,
-                    center: NormalizedVisualPoint(x: 0.4696969696969697, y: 0.29545454545454547),
-                    spacing: -2.8
-                )
+                eyes: nil
             )
         ]
     )
@@ -603,39 +613,66 @@ enum PetVisualDefaults {
             ),
             .sleeping: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .sleeping,
-                    center: NormalizedVisualPoint(
-                        x: 0.43406723484848486,
-                        y: 0.3385022095959596
-                    ),
-                    spacing: -2.8
-                ),
+                eyes: nil,
                 baseOffset: NormalizedVisualOffset(x: 0, y: 0.16666666666666657)
             ),
             .eating: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .eating,
-                    center: NormalizedVisualPoint(
-                        x: 0.43367266414141414,
-                        y: 0.3266256313131313
-                    ),
-                    spacing: -2.8
-                )
+                eyes: nil
             ),
             .hungry: PetStateVisualConfiguration(
                 base: .officialSkin,
-                eyes: PetEyeModuleConfiguration(
-                    kind: .hungry,
-                    center: NormalizedVisualPoint(
-                        x: 0.43367266414141414,
-                        y: 0.3266256313131313
-                    ),
-                    spacing: -2.8
-                )
+                eyes: nil
             )
         ]
+    )
+
+    // Yellow Xiaohuang uses complete, state-specific artwork. The offsets are
+    // promoted from its approved custom-pet layout so it is aligned from the
+    // first launch without a local customization file.
+    private static let yellow = PetVisualConfiguration(
+        states: [
+            .normal: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.1515151515151515),
+                baseScale: 1.1
+            ),
+            .happy: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(
+                    x: 0.015151515151515152,
+                    y: 0.16666666666666663
+                ),
+                baseScale: 1.1
+            ),
+            .scared: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.1515151515151515),
+                baseScale: 1.1
+            ),
+            .sleeping: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.1515151515151515),
+                baseScale: 1.1
+            ),
+            .eating: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.16666666666666663),
+                baseScale: 1.1
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.1515151515151515),
+                baseScale: 1.1
+            )
+        ],
+        bottomPetEnabled: true
     )
 
     private static func configuration(

@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct AboutCubePetView: View {
+    private static let downloadURL = URL(string: "https://github.com/SUSUNExt/CubePet")!
+
     @ObservedObject var languageSettings: LanguageSettings
     let appIcon: NSImage
 
@@ -32,10 +34,27 @@ struct AboutCubePetView: View {
                 .padding(.horizontal, 26)
                 .padding(.vertical, 14)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 8)
+
+            Text(versionText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Link(destination: Self.downloadURL) {
+                Label(languageSettings.text(.download), systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .padding(.top, 10)
+            .padding(.bottom, 22)
         }
         .padding(.top, 26)
-        .frame(width: 400, height: 360)
+        .frame(width: 400, height: 410)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var versionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.9.7"
+        return "\(languageSettings.text(.version)) \(version)"
     }
 }
