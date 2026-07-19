@@ -30,7 +30,8 @@ final class PetCustomizationStoreTests: XCTestCase {
                     eyes: PetEyeModuleConfiguration(kind: .tracking)
                 )
             ],
-            bottomPetEnabled: true
+            bottomPetEnabled: true,
+            gravityEnabled: false
         )
 
         let pet = try store.createCustomPet(
@@ -51,6 +52,19 @@ final class PetCustomizationStoreTests: XCTestCase {
             reloadedStore.customPet(id: pet.id)?.visualConfiguration,
             visualConfiguration
         )
+        XCTAssertFalse(
+            reloadedStore.customPet(id: pet.id)?.visualConfiguration.resolvedGravityEnabled ?? true
+        )
+    }
+
+    func testLegacyVisualConfigurationDefaultsToGravityEnabled() {
+        let configuration = PetVisualConfiguration(
+            states: [
+                .normal: PetStateVisualConfiguration(base: .officialSkin, eyes: nil)
+            ]
+        )
+
+        XCTAssertTrue(configuration.resolvedGravityEnabled)
     }
 
     @MainActor

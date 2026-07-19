@@ -128,6 +128,22 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             )
             .resolvedBottomPetEnabled
         }
+        physicsController.isGravityEnabled = { [appearanceSettings = self.appearanceSettings, customizationStore] in
+            if let customPet = customizationStore.customPet(id: appearanceSettings.selectedPetID) {
+                return customPet.visualConfiguration.resolvedGravityEnabled
+            }
+
+            let official = PetVisualDefaults.configuration(
+                petID: appearanceSettings.selectedPetID,
+                skinID: appearanceSettings.selectedSkinID
+            )
+            return customizationStore.visualConfiguration(
+                petID: appearanceSettings.selectedPetID,
+                skinID: appearanceSettings.selectedSkinID,
+                official: official
+            )
+            .resolvedGravityEnabled
+        }
         physicsController.onClick = { [petState] in
             petState.reactToClick(isHungry: hungerStore.isHungry)
         }

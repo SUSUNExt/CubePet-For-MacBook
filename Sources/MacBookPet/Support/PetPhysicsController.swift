@@ -36,6 +36,7 @@ final class PetPhysicsController {
     var onLand: (() -> Void)?
     var isMouseGazeEnabled: (() -> Bool)?
     var isBottomPetEnabled: (() -> Bool)?
+    var isGravityEnabled: (() -> Bool)?
     var isUsingInputEventTap: Bool {
         inputEventTap != nil
     }
@@ -176,6 +177,11 @@ final class PetPhysicsController {
             velocity.dx *= 0.25
             velocity.dy *= 0.25
             onClick?()
+        } else if isGravityEnabled?() != true {
+            velocity = CGVector(dx: 0, dy: 0)
+            // With gravity disabled, releasing a drag is the hover-mode
+            // equivalent of landing, so the scared grab expression can reset.
+            onLand?()
         } else if isBottomPetEnabled?() == true {
             velocity = CGVector(dx: 0, dy: 0)
         } else {
@@ -288,7 +294,11 @@ final class PetPhysicsController {
         position = window.frame.origin
 
         let bottomPetEnabled = isBottomPetEnabled?() == true
-        if let dragTargetOrigin {
+        let gravityEnabled = isGravityEnabled?() ?? true
+        if let dragTargetOrigin, !gravityEnabled {
+            position = dragTargetOrigin
+            velocity = CGVector(dx: 0, dy: 0)
+        } else if let dragTargetOrigin {
             let spring = CGFloat(72)
             let damping = CGFloat(13)
             var acceleration = CGVector(dx: 0, dy: -1_850)
@@ -299,11 +309,13 @@ final class PetPhysicsController {
             acceleration.dy += (verticalTarget - position.y) * spring - velocity.dy * damping
             velocity.dx += acceleration.dx * dt
             velocity.dy += acceleration.dy * dt
-        } else {
+        } else if gravityEnabled {
             let acceleration = CGVector(dx: 0, dy: -1_850)
             velocity.dx *= pow(0.994, dt * 60)
             velocity.dx += acceleration.dx * dt
             velocity.dy += acceleration.dy * dt
+        } else {
+            velocity = CGVector(dx: 0, dy: 0)
         }
 
         let maxSpeed = CGFloat(2_900)

@@ -98,6 +98,7 @@ enum PetCustomizationText {
     case addFrames
     case actionFrequency
     case bottomPet
+    case gravity
     case sleepingBreath
     case sleepingBreathHint
     case sleepingEffect
@@ -207,6 +208,7 @@ final class LanguageSettings: ObservableObject {
         case (.english, .addFrames): "Add Image Frames..."
         case (.english, .actionFrequency): "Action frequency"
         case (.english, .bottomPet): "Bottom Pet"
+        case (.english, .gravity): "Gravity"
         case (.english, .sleepingBreath): "Breathing effect"
         case (.english, .sleepingBreathHint): "Single images are recommended to use this effect."
         case (.english, .sleepingEffect): "Sleep effect"
@@ -283,6 +285,7 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .addFrames): "連番画像を追加..."
         case (.japanese, .actionFrequency): "アクション頻度"
         case (.japanese, .bottomPet): "下部ペット"
+        case (.japanese, .gravity): "重力"
         case (.japanese, .sleepingBreath): "呼吸エフェクト"
         case (.japanese, .sleepingBreathHint): "1枚の画像での使用をおすすめします。"
         case (.japanese, .sleepingEffect): "睡眠エフェクト"
@@ -359,6 +362,7 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .addFrames): "이미지 프레임 추가..."
         case (.korean, .actionFrequency): "동작 빈도"
         case (.korean, .bottomPet): "바닥 펫"
+        case (.korean, .gravity): "중력"
         case (.korean, .sleepingBreath): "호흡 효과"
         case (.korean, .sleepingBreathHint): "단일 이미지에서 사용하는 것을 권장합니다."
         case (.korean, .sleepingEffect): "수면 효과"
@@ -435,6 +439,7 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .addFrames): "添加多帧图片..."
         case (.simplifiedChinese, .actionFrequency): "小动作出现频率"
         case (.simplifiedChinese, .bottomPet): "底部宠物"
+        case (.simplifiedChinese, .gravity): "重力"
         case (.simplifiedChinese, .sleepingBreath): "呼吸感"
         case (.simplifiedChinese, .sleepingBreathHint): "单张图片建议开启"
         case (.simplifiedChinese, .sleepingEffect): "睡眠特效"
@@ -511,6 +516,7 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .addFrames): "加入多影格圖片..."
         case (.traditionalChinese, .actionFrequency): "小動作出現頻率"
         case (.traditionalChinese, .bottomPet): "底部寵物"
+        case (.traditionalChinese, .gravity): "重力"
         case (.traditionalChinese, .sleepingBreath): "呼吸感"
         case (.traditionalChinese, .sleepingBreathHint): "建議在單張圖片時開啟"
         case (.traditionalChinese, .sleepingEffect): "睡眠特效"

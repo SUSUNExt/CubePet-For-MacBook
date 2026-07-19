@@ -241,13 +241,18 @@ struct PetStateVisualConfiguration: Equatable, Codable {
 struct PetVisualConfiguration: Equatable, Codable {
     private var states: [PetVisualState: PetStateVisualConfiguration]
     private var bottomPetEnabled: Bool?
+    /// `nil` preserves normal gravity for configurations saved before this
+    /// preference was introduced.
+    private var gravityEnabled: Bool?
 
     init(
         states: [PetVisualState: PetStateVisualConfiguration],
-        bottomPetEnabled: Bool? = nil
+        bottomPetEnabled: Bool? = nil,
+        gravityEnabled: Bool? = nil
     ) {
         self.states = states
         self.bottomPetEnabled = bottomPetEnabled
+        self.gravityEnabled = gravityEnabled
     }
 
     func configuration(for state: PetVisualState) -> PetStateVisualConfiguration {
@@ -273,8 +278,16 @@ struct PetVisualConfiguration: Equatable, Codable {
         bottomPetEnabled ?? false
     }
 
+    var resolvedGravityEnabled: Bool {
+        gravityEnabled ?? true
+    }
+
     mutating func setBottomPetEnabled(_ isEnabled: Bool) {
         bottomPetEnabled = isEnabled
+    }
+
+    mutating func setGravityEnabled(_ isEnabled: Bool) {
+        gravityEnabled = isEnabled
     }
 
     mutating func setConfiguration(
@@ -293,6 +306,9 @@ struct PetVisualConfiguration: Equatable, Codable {
         var result = self
         if result.bottomPetEnabled == nil {
             result.bottomPetEnabled = defaults.bottomPetEnabled
+        }
+        if result.gravityEnabled == nil {
+            result.gravityEnabled = defaults.gravityEnabled
         }
         for state in PetVisualState.allCases where result.states[state] == nil {
             result.states[state] = defaults.configuration(for: state)

@@ -4,9 +4,9 @@ struct SleepZzzView: View {
     let date: Date
 
     private let symbols: [SleepZzzSymbol] = [
-        SleepZzzSymbol(id: 0, delay: 0, size: 24, x: 88, y: 152),
-        SleepZzzSymbol(id: 1, delay: 0.34, size: 31, x: 116, y: 124),
-        SleepZzzSymbol(id: 2, delay: 0.68, size: 39, x: 150, y: 91)
+        SleepZzzSymbol(id: 0, delay: 0, size: 12, x: 88, y: 152),
+        SleepZzzSymbol(id: 1, delay: 0.7, size: 15.5, x: 101, y: 139),
+        SleepZzzSymbol(id: 2, delay: 1.4, size: 19.5, x: 116, y: 124)
     ]
 
     var body: some View {
@@ -23,7 +23,7 @@ struct SleepZzzView: View {
 
         return Text("z")
             .font(.system(size: symbol.size, weight: .heavy, design: .rounded))
-            .foregroundStyle(Color(red: 0.82, green: 0.19, blue: 0.02))
+            .foregroundStyle(.white.opacity(0.78))
             .scaleEffect(0.16 + 0.84 * progress.appearProgress)
             .opacity(progress.opacity)
             .position(x: symbol.x, y: symbol.y)

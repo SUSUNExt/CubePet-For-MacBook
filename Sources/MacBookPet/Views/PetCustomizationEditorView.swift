@@ -765,6 +765,10 @@ struct PetCustomizationEditorView: View {
             Toggle(label(.bottomPet), isOn: bottomPetBinding)
                 .disabled(isBottomPetLocked)
 
+            if selectedState == .normal {
+                Toggle(label(.gravity), isOn: gravityBinding)
+            }
+
             if selectedState == .sleeping {
                 HStack(spacing: 6) {
                     Toggle(label(.sleepingBreath), isOn: sleepingBreathBinding)
@@ -781,9 +785,12 @@ struct PetCustomizationEditorView: View {
                     .popover(isPresented: $isShowingSleepingBreathHint, arrowEdge: .trailing) {
                         Text(label(.sleepingBreathHint))
                             .font(.caption)
-                            .padding(10)
+                        .padding(10)
                     }
                 }
+
+                Divider()
+                    .padding(.vertical, 2)
 
                 Text(label(.sleepingEffect))
                     .font(.callout)
@@ -1825,6 +1832,13 @@ struct PetCustomizationEditorView: View {
         )
     }
 
+    private var gravityBinding: Binding<Bool> {
+        Binding(
+            get: { draft.resolvedGravityEnabled },
+            set: updateGravityEnabled
+        )
+    }
+
     private var isBottomPetLocked: Bool {
         guard let ids = editingOfficialIDs else { return false }
         return ids.petID == PetCatalog.cat.id && ids.skinID == "cat.yellow"
@@ -1834,6 +1848,19 @@ struct PetCustomizationEditorView: View {
         let previousDraft = draft
         var updatedDraft = previousDraft
         updatedDraft.setBottomPetEnabled(isEnabled)
+        guard updatedDraft != previousDraft else { return }
+
+        if historyTransactionBaseline == nil {
+            recordUndoCheckpoint(previousDraft)
+        }
+        draft = updatedDraft
+        statusMessage = nil
+    }
+
+    private func updateGravityEnabled(_ isEnabled: Bool) {
+        let previousDraft = draft
+        var updatedDraft = previousDraft
+        updatedDraft.setGravityEnabled(isEnabled)
         guard updatedDraft != previousDraft else { return }
 
         if historyTransactionBaseline == nil {

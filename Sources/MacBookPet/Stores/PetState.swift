@@ -67,17 +67,8 @@ final class PetState: ObservableObject {
         guard expression == .scared else { return }
 
         landingRecoveryTask?.cancel()
-        landingRecoveryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_300_000_000)
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.28)) {
-                    self?.expression = self?.restingExpression ?? .calm
-                }
-                self?.scheduleIdleCycle()
-            }
-        }
+        expression = restingExpression
+        scheduleIdleCycle()
     }
 
     func reactToFeed() {
