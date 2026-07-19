@@ -17,6 +17,12 @@ struct TrackingEyesView: View {
                     configuration: configuration,
                     additionalOffset: additionalOffset
                 )
+            } else if configuration.kind == .shibaWatercolor {
+                ShibaWatercolorEyePairView(
+                    configuration: configuration,
+                    isBlinking: effectiveBlinking,
+                    additionalOffset: additionalOffset
+                )
             } else if configuration.kind == .catDefault {
                 DefaultCatEyePairView(
                     configuration: configuration,
@@ -80,6 +86,51 @@ struct TrackingEyesView: View {
     }
 }
 
+/// A bundled eye module extracted from the supplied shiba illustration.  Unlike
+/// imported eye art, it owns an explicit closed-eye frame so blinks read as an
+/// eyelid closing rather than a vertically squashed bitmap.
+private struct ShibaWatercolorEyePairView: View {
+    let configuration: PetEyeModuleConfiguration
+    let isBlinking: Bool
+    let additionalOffset: CGSize
+
+    private static let openEye = load(named: "ShibaInuWatercolorEyeOpen")
+    private static let closedEye = load(named: "ShibaInuWatercolorEyeClosed")
+
+    var body: some View {
+        EyePairLayout(configuration: configuration, additionalOffset: additionalOffset) {
+            eyeImage(isMirrored: false)
+        } rightEye: {
+            eyeImage(isMirrored: true)
+        }
+    }
+
+    private func eyeImage(isMirrored: Bool) -> some View {
+        Group {
+            if let image = isBlinking ? Self.closedEye : Self.openEye {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+            } else {
+                Image(systemName: "eye")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 18, height: 18)
+        .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
+        .scaleEffect(CGFloat(configuration.resolvedPupilScale))
+        .animation(.easeInOut(duration: 0.10), value: isBlinking)
+    }
+
+    private static func load(named name: String) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png") else {
+            return nil
+        }
+        return NSImage(contentsOf: url)
+    }
+}
+
 /// The cat's standard wide eyes, available to imported custom pets as a reusable module.
 private struct DefaultCatEyePairView: View {
     let configuration: PetEyeModuleConfiguration
@@ -134,7 +185,7 @@ struct CustomEyePairView: View {
 
     private var eyeImage: some View {
         Group {
-            if let image = NSImage(contentsOf: asset.imageURL) {
+            if let image = PetImportedImageCache.image(for: asset.imageURL) {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)

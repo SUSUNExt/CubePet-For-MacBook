@@ -13,18 +13,21 @@ enum PetSkinName {
     case catBlack
     case catSiamese
     case catYellow
+    case shibaClassic
 }
 
 enum PetName {
     case cube
     case frog
     case cat
+    case dog
 }
 
 enum PetVisualKind {
     case cube
     case frog
     case cat
+    case shiba
 }
 
 struct PetSkinDefinition: Identifiable {
@@ -163,7 +166,23 @@ enum PetCatalog {
         ]
     )
 
-    static let pets = [cube, frog, cat]
+    static let dog = PetDefinition(
+        id: "dog",
+        name: .dog,
+        visualKind: .shiba,
+        price: 0,
+        skins: [
+            PetSkinDefinition(
+                id: "dog.shiba",
+                name: .shibaClassic,
+                color: NSColor(srgbRed: 0.88, green: 0.42, blue: 0.12, alpha: 1),
+                unlockLevel: 1,
+                price: 0
+            )
+        ]
+    )
+
+    static let pets = [cube, frog, cat, dog]
 
     static func pet(id: String) -> PetDefinition? {
         pets.first { $0.id == id }

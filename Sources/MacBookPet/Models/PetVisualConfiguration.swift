@@ -35,11 +35,18 @@ enum PetActionFrequency: String, CaseIterable, Codable {
     case high
 }
 
+enum PetSleepingEffect: String, CaseIterable, Codable {
+    case bubbles
+    case zzz
+}
+
 enum PetEyeModuleKind: String, CaseIterable, Codable {
     case expressionDriven
     /// The white sclera and pupil pair used by the default cat appearance.
     case catDefault
     case tracking
+    /// A hand-drawn shiba inu eye pair with a dedicated closed-eye blink frame.
+    case shibaWatercolor
     case happy
     case scared
     case sleeping
@@ -141,6 +148,8 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
             return (.round, .round)
         case .tracking:
             return (.round, .round)
+        case .shibaWatercolor:
+            return (.round, .round)
         case .happy:
             return (.smile, .smile)
         case .scared:
@@ -162,14 +171,14 @@ struct PetEyeModuleConfiguration: Equatable, Codable {
             return true
         case .tracking:
             return true
-        case .happy, .scared, .sleeping, .eating, .hungry:
+        case .shibaWatercolor, .happy, .scared, .sleeping, .eating, .hungry:
             return false
         }
     }
 
     var allowsBlinking: Bool {
         switch kind {
-        case .expressionDriven, .catDefault, .tracking:
+        case .expressionDriven, .catDefault, .tracking, .shibaWatercolor:
             return true
         case .happy, .scared, .sleeping, .eating, .hungry:
             return false
@@ -197,6 +206,9 @@ struct PetStateVisualConfiguration: Equatable, Codable {
     /// `nil` keeps the default breathing effect enabled for compatibility with
     /// existing custom pets that were saved before this setting was introduced.
     var sleepingBreathEnabled: Bool? = nil
+    /// `nil` keeps the original bubble effect for custom pets saved before the
+    /// sleep-effect selector was introduced.
+    var sleepingEffect: PetSleepingEffect? = nil
 
     var resolvedActionAssetIDs: [String] {
         actionAssetIDs ?? actionAssetID.map { [$0] } ?? []
@@ -208,6 +220,10 @@ struct PetStateVisualConfiguration: Equatable, Codable {
 
     var resolvedSleepingBreathEnabled: Bool {
         sleepingBreathEnabled ?? true
+    }
+
+    var resolvedSleepingEffect: PetSleepingEffect {
+        sleepingEffect ?? .bubbles
     }
 
     var resolvedBaseScale: Double {
@@ -297,6 +313,8 @@ enum PetVisualDefaults {
             return frog
         case PetCatalog.cat.id:
             return cat(skinID: skinID)
+        case PetCatalog.dog.id:
+            return shiba
         default:
             return cube
         }
@@ -338,6 +356,61 @@ enum PetVisualDefaults {
             spacing: 4.2,
             rightEyeOffsetY: 0.5
         )
+    )
+
+    // Promoted from the approved custom-pet layout so Shiba Inu has the
+    // same complete expression artwork and placement on every fresh install.
+    static let shiba = PetVisualConfiguration(
+        states: [
+            .normal: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: PetEyeModuleConfiguration(
+                    kind: .shibaWatercolor,
+                    center: NormalizedVisualPoint(
+                        x: 0.4963699494949495,
+                        y: 0.3116911300505051
+                    ),
+                    scale: 0.5,
+                    spacing: 3.676809210526315,
+                    pupilScale: 0.5482884457236842
+                ),
+                baseOffset: NormalizedVisualOffset(
+                    x: 0.0012866436100131755,
+                    y: 0.015014273166447073
+                ),
+                baseScale: 1.15
+            ),
+            .happy: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.015151515151515152),
+                baseScale: 1.15
+            ),
+            .scared: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.030303030303030304),
+                baseScale: 1.15
+            ),
+            .sleeping: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.1515151515151515),
+                baseScale: 1.15
+            ),
+            .eating: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.015151515151515152),
+                baseScale: 1.15
+            ),
+            .hungry: PetStateVisualConfiguration(
+                base: .officialSkin,
+                eyes: nil,
+                baseOffset: NormalizedVisualOffset(x: 0, y: 0.06060606060606061),
+                baseScale: 1.1
+            )
+        ]
     )
 
     static func cat(skinID: String) -> PetVisualConfiguration {

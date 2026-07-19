@@ -166,6 +166,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
         )
         self.shortcutSettingsWindowController = shortcutSettingsWindowController
 
+        let updateAvailability = AppUpdateAvailability()
         let statusItemController = StatusItemController(
             feedSettings: feedSettings,
             languageSettings: languageSettings,
@@ -178,6 +179,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             featureEntitlementStore: featureEntitlementStore,
             shortcutSettings: shortcutSettings,
             launchAtLoginController: launchAtLoginController,
+            updateAvailability: updateAvailability,
             onShowAbout: { [weak aboutWindowController] in
                 aboutWindowController?.show()
             },
@@ -190,6 +192,7 @@ final class MacBookPetApp: NSObject, NSApplicationDelegate, NSSharingServiceDele
             onQuit: { NSApp.terminate(nil) }
         )
         self.statusItemController = statusItemController
+        updateAvailability.startCheckingForUpdates()
 
         window.onRightClick = { [weak statusItemController] _ in
             statusItemController?.showPetContextMenu(at: NSEvent.mouseLocation)

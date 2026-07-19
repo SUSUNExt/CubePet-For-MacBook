@@ -97,6 +97,7 @@ struct PetCustomizationSidebarView: View {
         case .cube: "square.fill"
         case .frog: "leaf.fill"
         case .cat: "pawprint.fill"
+        case .shiba: "dog.fill"
         }
     }
 

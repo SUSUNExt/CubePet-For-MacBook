@@ -32,6 +32,7 @@ enum AppText {
     case pet
     case showSystemInfo
     case aboutCubePet
+    case updateAvailable
     case aboutDescription
     case version
     case download
@@ -99,6 +100,9 @@ enum PetCustomizationText {
     case bottomPet
     case sleepingBreath
     case sleepingBreathHint
+    case sleepingEffect
+    case sleepingBubbles
+    case sleepingZzz
     case smallActions
     case undo
     case redo
@@ -109,6 +113,7 @@ enum PetCustomizationText {
     case eyeStyle
     case bigEyes
     case smallBlackBlockEyes
+    case shibaWatercolorEyes
     case officialEyes
     case myEyePresets
     case importEyes
@@ -204,6 +209,9 @@ final class LanguageSettings: ObservableObject {
         case (.english, .bottomPet): "Bottom Pet"
         case (.english, .sleepingBreath): "Breathing effect"
         case (.english, .sleepingBreathHint): "Single images are recommended to use this effect."
+        case (.english, .sleepingEffect): "Sleep effect"
+        case (.english, .sleepingBubbles): "Bubbles"
+        case (.english, .sleepingZzz): "Zzz"
         case (.english, .smallActions): "Small Actions"
         case (.english, .undo): "Undo"
         case (.english, .redo): "Redo"
@@ -214,6 +222,7 @@ final class LanguageSettings: ObservableObject {
         case (.english, .eyeStyle): "Eye Type"
         case (.english, .bigEyes): "Big Eyes"
         case (.english, .smallBlackBlockEyes): "Small Black Block Eyes"
+        case (.english, .shibaWatercolorEyes): "Shiba Watercolor Eyes"
         case (.english, .officialEyes): "Official Eyes"
         case (.english, .myEyePresets): "My Presets"
         case (.english, .importEyes): "Import Eyes..."
@@ -276,6 +285,9 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .bottomPet): "下部ペット"
         case (.japanese, .sleepingBreath): "呼吸エフェクト"
         case (.japanese, .sleepingBreathHint): "1枚の画像での使用をおすすめします。"
+        case (.japanese, .sleepingEffect): "睡眠エフェクト"
+        case (.japanese, .sleepingBubbles): "泡"
+        case (.japanese, .sleepingZzz): "Zzz"
         case (.japanese, .smallActions): "小さなアクション"
         case (.japanese, .undo): "元に戻す"
         case (.japanese, .redo): "やり直す"
@@ -286,6 +298,7 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .eyeStyle): "目の種類"
         case (.japanese, .bigEyes): "大きな目"
         case (.japanese, .smallBlackBlockEyes): "小さな黒い四角の目"
+        case (.japanese, .shibaWatercolorEyes): "柴犬の水彩風の目"
         case (.japanese, .officialEyes): "公式の目"
         case (.japanese, .myEyePresets): "マイプリセット"
         case (.japanese, .importEyes): "目を読み込む..."
@@ -348,6 +361,9 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .bottomPet): "바닥 펫"
         case (.korean, .sleepingBreath): "호흡 효과"
         case (.korean, .sleepingBreathHint): "단일 이미지에서 사용하는 것을 권장합니다."
+        case (.korean, .sleepingEffect): "수면 효과"
+        case (.korean, .sleepingBubbles): "거품"
+        case (.korean, .sleepingZzz): "Zzz"
         case (.korean, .smallActions): "작은 동작"
         case (.korean, .undo): "실행 취소"
         case (.korean, .redo): "다시 실행"
@@ -358,6 +374,7 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .eyeStyle): "눈 유형"
         case (.korean, .bigEyes): "큰 눈"
         case (.korean, .smallBlackBlockEyes): "작은 검은 네모 눈"
+        case (.korean, .shibaWatercolorEyes): "시바견 수채화 눈"
         case (.korean, .officialEyes): "공식 눈"
         case (.korean, .myEyePresets): "내 프리셋"
         case (.korean, .importEyes): "눈 가져오기..."
@@ -420,6 +437,9 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .bottomPet): "底部宠物"
         case (.simplifiedChinese, .sleepingBreath): "呼吸感"
         case (.simplifiedChinese, .sleepingBreathHint): "单张图片建议开启"
+        case (.simplifiedChinese, .sleepingEffect): "睡眠特效"
+        case (.simplifiedChinese, .sleepingBubbles): "气泡"
+        case (.simplifiedChinese, .sleepingZzz): "Zzz"
         case (.simplifiedChinese, .smallActions): "小动作"
         case (.simplifiedChinese, .undo): "撤销"
         case (.simplifiedChinese, .redo): "重做"
@@ -430,6 +450,7 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .eyeStyle): "眼睛类型"
         case (.simplifiedChinese, .bigEyes): "大眼睛"
         case (.simplifiedChinese, .smallBlackBlockEyes): "小黑块眼睛"
+        case (.simplifiedChinese, .shibaWatercolorEyes): "柴犬水彩眼睛"
         case (.simplifiedChinese, .officialEyes): "官方眼睛"
         case (.simplifiedChinese, .myEyePresets): "我的预设"
         case (.simplifiedChinese, .importEyes): "导入眼睛..."
@@ -492,6 +513,9 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .bottomPet): "底部寵物"
         case (.traditionalChinese, .sleepingBreath): "呼吸感"
         case (.traditionalChinese, .sleepingBreathHint): "建議在單張圖片時開啟"
+        case (.traditionalChinese, .sleepingEffect): "睡眠特效"
+        case (.traditionalChinese, .sleepingBubbles): "氣泡"
+        case (.traditionalChinese, .sleepingZzz): "Zzz"
         case (.traditionalChinese, .smallActions): "小動作"
         case (.traditionalChinese, .undo): "復原"
         case (.traditionalChinese, .redo): "重做"
@@ -502,6 +526,7 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .eyeStyle): "眼睛類型"
         case (.traditionalChinese, .bigEyes): "大眼睛"
         case (.traditionalChinese, .smallBlackBlockEyes): "小黑塊眼睛"
+        case (.traditionalChinese, .shibaWatercolorEyes): "柴犬水彩眼睛"
         case (.traditionalChinese, .officialEyes): "官方眼睛"
         case (.traditionalChinese, .myEyePresets): "我的預設"
         case (.traditionalChinese, .importEyes): "匯入眼睛..."
@@ -681,6 +706,7 @@ final class LanguageSettings: ObservableObject {
         case (.english, .catBlack): "White-Tuft Black Cat"
         case (.english, .catSiamese): "Fluffy Siamese Cat"
         case (.english, .catYellow): "Huang Xiaohuang"
+        case (.english, .shibaClassic): "Shiba Inu"
         case (.japanese, .classic): "黒ブロック"
         case (.japanese, .blue): "青ブロック"
         case (.japanese, .green): "緑ブロック"
@@ -693,6 +719,7 @@ final class LanguageSettings: ObservableObject {
         case (.japanese, .catBlack): "白い毛の黒猫"
         case (.japanese, .catSiamese): "ふわふわシャム猫"
         case (.japanese, .catYellow): "ホアン・シャオホアン"
+        case (.japanese, .shibaClassic): "柴犬"
         case (.korean, .classic): "검은 블록"
         case (.korean, .blue): "파란 블록"
         case (.korean, .green): "초록 블록"
@@ -705,6 +732,7 @@ final class LanguageSettings: ObservableObject {
         case (.korean, .catBlack): "흰점 검은 고양이"
         case (.korean, .catSiamese): "복슬복슬 샴고양이"
         case (.korean, .catYellow): "황샤오황"
+        case (.korean, .shibaClassic): "시바견"
         case (.simplifiedChinese, .classic): "黑块"
         case (.simplifiedChinese, .blue): "蓝块"
         case (.simplifiedChinese, .green): "绿块"
@@ -717,6 +745,7 @@ final class LanguageSettings: ObservableObject {
         case (.simplifiedChinese, .catBlack): "白额黑猫"
         case (.simplifiedChinese, .catSiamese): "蓬松暹罗猫"
         case (.simplifiedChinese, .catYellow): "黄小黄"
+        case (.simplifiedChinese, .shibaClassic): "柴犬"
         case (.traditionalChinese, .classic): "黑塊"
         case (.traditionalChinese, .blue): "藍塊"
         case (.traditionalChinese, .green): "綠塊"
@@ -729,6 +758,7 @@ final class LanguageSettings: ObservableObject {
         case (.traditionalChinese, .catBlack): "白額黑貓"
         case (.traditionalChinese, .catSiamese): "蓬鬆暹羅貓"
         case (.traditionalChinese, .catYellow): "黃小黃"
+        case (.traditionalChinese, .shibaClassic): "柴犬"
         }
     }
 
@@ -737,18 +767,23 @@ final class LanguageSettings: ObservableObject {
         case (.english, .cube): "Cube"
         case (.english, .frog): "Frog"
         case (.english, .cat): "Cat"
+        case (.english, .dog): "Dog"
         case (.japanese, .cube): "キューブ"
         case (.japanese, .frog): "カエル"
         case (.japanese, .cat): "猫"
+        case (.japanese, .dog): "犬"
         case (.korean, .cube): "큐브"
         case (.korean, .frog): "개구리"
         case (.korean, .cat): "고양이"
+        case (.korean, .dog): "강아지"
         case (.simplifiedChinese, .cube): "方块"
         case (.simplifiedChinese, .frog): "青蛙"
         case (.simplifiedChinese, .cat): "猫咪"
+        case (.simplifiedChinese, .dog): "狗狗"
         case (.traditionalChinese, .cube): "方塊"
         case (.traditionalChinese, .frog): "青蛙"
         case (.traditionalChinese, .cat): "貓咪"
+        case (.traditionalChinese, .dog): "狗狗"
         }
     }
 
@@ -801,6 +836,7 @@ final class LanguageSettings: ObservableObject {
         case .pet: "Change Pet"
         case .showSystemInfo: "Show System Info"
         case .aboutCubePet: "About CubePet"
+        case .updateAvailable: "Update available"
         case .aboutDescription: "A casual desktop pet app currently in an early stage of development.\nDeveloped with assistance from GPT."
         case .version: "Version"
         case .download: "Download"
@@ -848,6 +884,7 @@ final class LanguageSettings: ObservableObject {
         case .pet: "ペットを変更"
         case .showSystemInfo: "システム情報を表示"
         case .aboutCubePet: "CubePetについて"
+        case .updateAvailable: "アップデートがあります"
         case .aboutDescription: "気軽に楽しめるデスクトップペットアプリです。現在は初期開発段階です。\n本ソフトウェアはGPTの支援を受けて開発されました。"
         case .version: "バージョン"
         case .download: "ダウンロード"
@@ -895,6 +932,7 @@ final class LanguageSettings: ObservableObject {
         case .pet: "펫 변경"
         case .showSystemInfo: "시스템 정보 표시"
         case .aboutCubePet: "CubePet 정보"
+        case .updateAvailable: "새 업데이트가 있습니다"
         case .aboutDescription: "가볍게 즐기는 데스크톱 펫 앱으로, 현재 초기 개발 단계입니다.\n이 소프트웨어는 GPT의 도움을 받아 개발되었습니다."
         case .version: "버전"
         case .download: "다운로드"
@@ -942,6 +980,7 @@ final class LanguageSettings: ObservableObject {
         case .pet: "更换宠物"
         case .showSystemInfo: "显示系统信息"
         case .aboutCubePet: "关于CubePet"
+        case .updateAvailable: "发现新版本，点击更新"
         case .aboutDescription: "CubePet 是一只住在桌面上的小宠物，\n陪你工作、安静成长～\n偶尔也能帮你吃掉不需要的文件^_^"
         case .version: "版本"
         case .download: "下载地址"
@@ -989,6 +1028,7 @@ final class LanguageSettings: ObservableObject {
         case .pet: "更換寵物"
         case .showSystemInfo: "顯示系統資訊"
         case .aboutCubePet: "關於CubePet"
+        case .updateAvailable: "發現新版本，點擊更新"
         case .aboutDescription: "這是一款休閒桌面寵物軟體，目前只是初步開發階段。\n本軟體由GPT協助開發"
         case .version: "版本"
         case .download: "下載連結"

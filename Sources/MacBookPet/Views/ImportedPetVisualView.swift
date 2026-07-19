@@ -77,7 +77,7 @@ private struct AnimatedPetImageView: View {
         case .gif:
             return GIFFrameCache.animation(for: asset.imageURL)?.firstImage
         case .stillImage, .frameAnimation:
-            return NSImage(contentsOf: asset.imageURL)
+            return PetImportedImageCache.image(for: asset.imageURL)
         }
     }
 
@@ -91,7 +91,7 @@ private struct AnimatedPetImageView: View {
     private func image(at date: Date) -> NSImage? {
         switch asset.kind {
         case .stillImage:
-            return NSImage(contentsOf: asset.imageURL)
+            return PetImportedImageCache.image(for: asset.imageURL)
         case .gif:
             return GIFFrameCache.animation(for: asset.imageURL)?.image(
                 at: date,
@@ -101,7 +101,7 @@ private struct AnimatedPetImageView: View {
             guard !asset.frameURLs.isEmpty else { return nil }
             let elapsed = date.timeIntervalSinceReferenceDate * playbackRate
             let index = Int(elapsed / 0.1).quotientAndRemainder(dividingBy: asset.frameURLs.count).remainder
-            return NSImage(contentsOf: asset.frameURLs[index])
+            return PetImportedImageCache.image(for: asset.frameURLs[index])
         }
     }
 }
@@ -110,6 +110,7 @@ private final class GIFFrameAnimation {
     private let frames: [NSImage]
     private let delays: [TimeInterval]
     private let duration: TimeInterval
+    let memoryCost: Int
 
     init?(url: URL) {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
@@ -118,15 +119,18 @@ private final class GIFFrameAnimation {
 
         var frames: [NSImage] = []
         var delays: [TimeInterval] = []
+        var memoryCost = 0
         for index in 0 ..< count {
             guard let image = CGImageSourceCreateImageAtIndex(source, index, nil) else { continue }
             frames.append(NSImage(cgImage: image, size: .zero))
             delays.append(Self.delay(for: source, index: index))
+            memoryCost += image.width * image.height * 4
         }
         guard !frames.isEmpty else { return nil }
         self.frames = frames
         self.delays = delays
         duration = delays.reduce(0, +)
+        self.memoryCost = max(memoryCost, 1)
     }
 
     func image(at date: Date, playbackRate: Double) -> NSImage {
@@ -154,12 +158,18 @@ private final class GIFFrameAnimation {
 }
 
 private enum GIFFrameCache {
-    private static var animations: [URL: GIFFrameAnimation] = [:]
+    private static let animations: NSCache<NSURL, GIFFrameAnimation> = {
+        let cache = NSCache<NSURL, GIFFrameAnimation>()
+        cache.countLimit = 4
+        cache.totalCostLimit = 128 * 1_024 * 1_024
+        return cache
+    }()
 
     static func animation(for url: URL) -> GIFFrameAnimation? {
-        if let animation = animations[url] { return animation }
+        let key = url as NSURL
+        if let animation = animations.object(forKey: key) { return animation }
         guard let animation = GIFFrameAnimation(url: url) else { return nil }
-        animations[url] = animation
+        animations.setObject(animation, forKey: key, cost: animation.memoryCost)
         return animation
     }
 }

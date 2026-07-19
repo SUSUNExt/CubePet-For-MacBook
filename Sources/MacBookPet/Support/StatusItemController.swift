@@ -51,6 +51,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         keyEquivalent: ""
     )
     private let aboutItem = NSMenuItem(title: "", action: #selector(showAbout), keyEquivalent: "")
+    private let updateAvailableItem = NSMenuItem(title: "", action: #selector(openUpdateDownload), keyEquivalent: "")
     private let quitItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "")
     private let moveToTrashItem = NSMenuItem(title: "", action: #selector(selectMoveToTrash), keyEquivalent: "")
     private let moveToFolderItem = NSMenuItem(title: "", action: #selector(selectMoveToFolder), keyEquivalent: "")
@@ -66,6 +67,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let featureEntitlementStore: FeatureEntitlementStore
     private let shortcutSettings: ShortcutSettings
     private let launchAtLoginController: LaunchAtLoginController
+    private let updateAvailability: AppUpdateAvailability
     private let metricsMonitor = SystemMetricsMonitor()
     private let onShowAbout: () -> Void
     private let onShowPetCustomization: () -> Void
@@ -96,6 +98,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         featureEntitlementStore: FeatureEntitlementStore,
         shortcutSettings: ShortcutSettings,
         launchAtLoginController: LaunchAtLoginController,
+        updateAvailability: AppUpdateAvailability,
         onShowAbout: @escaping () -> Void,
         onShowPetCustomization: @escaping () -> Void,
         onShowShortcutSettings: @escaping () -> Void,
@@ -112,6 +115,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.featureEntitlementStore = featureEntitlementStore
         self.shortcutSettings = shortcutSettings
         self.launchAtLoginController = launchAtLoginController
+        self.updateAvailability = updateAvailability
         self.onShowAbout = onShowAbout
         self.onShowPetCustomization = onShowPetCustomization
         self.onShowShortcutSettings = onShowShortcutSettings
@@ -155,6 +159,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             .dropFirst()
             .sink { [weak self] _ in
                 self?.updateShortcutSettingsMenuState()
+            }
+            .store(in: &cancellables)
+        updateAvailability.$isUpdateAvailable
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateUpdateAvailableMenuState()
             }
             .store(in: &cancellables)
         metricsMonitor.onUpdate = { [weak self] snapshot in
@@ -227,6 +237,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         aboutItem.target = self
         menu.addItem(aboutItem)
 
+        updateAvailableItem.target = self
+        menu.addItem(updateAvailableItem)
+
         menu.addItem(.separator())
 
         quitItem.target = self
@@ -245,6 +258,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         activityMonitorItem.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: nil)
         showSystemInfoItem.image = NSImage(systemSymbolName: "cpu", accessibilityDescription: nil)
         aboutItem.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)
+        updateAvailableItem.image = NSImage(
+            systemSymbolName: "arrow.down.circle.badge.exclamationmark",
+            accessibilityDescription: nil
+        )
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -331,6 +348,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showAbout() {
         onShowAbout()
+    }
+
+    @objc private func openUpdateDownload() {
+        NSWorkspace.shared.open(AppUpdateAvailability.downloadURL)
     }
 
     @objc private func showShortcutSettings() {
@@ -911,6 +932,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         skinItem.isEnabled = !appearanceSettings.isCustomPetSelected
         updatePetCustomizationMenuState()
         aboutItem.title = languageSettings.text(.aboutCubePet)
+        updateAvailableItem.attributedTitle = updateAvailableTitle()
+        updateUpdateAvailableMenuState()
         quitItem.title = languageSettings.text(.exit)
         menuAppearanceItem.title = languageSettings.text(.menuAppearance)
         for style in MenuStyle.selectableCases {
@@ -931,6 +954,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         updateLanguageMenuState()
         updateMenuAppearanceMenuState()
         updateSystemInfoVisibility()
+    }
+
+    private func updateUpdateAvailableMenuState() {
+        updateAvailableItem.isHidden = !updateAvailability.isUpdateAvailable
+    }
+
+    private func updateAvailableTitle() -> NSAttributedString {
+        NSAttributedString(
+            string: languageSettings.text(.updateAvailable),
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 0),
+                .foregroundColor: NSColor.systemOrange.withAlphaComponent(0.72)
+            ]
+        )
     }
 
     private func updateFeedMenuState() {
@@ -1076,7 +1113,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         paragraphStyle.tabStops = [NSTextTab(textAlignment: .right, location: foodPriceTabLocation(font: font))]
 
         return NSAttributedString(
-            string: "\(languageSettings.foodName(food.name)) +\(food.satiety)\t\(food.price)G",
+            string: "\(languageSettings.foodName(food.name))\t\(food.price)G",
             attributes: [
                 .font: font,
                 .paragraphStyle: paragraphStyle
@@ -1091,7 +1128,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func foodPriceTabLocation(font: NSFont) -> CGFloat {
         let attributes: [NSAttributedString.Key: Any] = [.font: font]
         let longestName = ShopCatalog.foods
-            .map { ("\(languageSettings.foodName($0.name)) +\($0.satiety)" as NSString).size(withAttributes: attributes).width }
+            .map { (languageSettings.foodName($0.name) as NSString).size(withAttributes: attributes).width }
             .max() ?? 0
         let widestPrice = ShopCatalog.foods
             .map { ("\($0.price)G" as NSString).size(withAttributes: attributes).width }
@@ -1244,6 +1281,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
                 NSBezierPath(ovalIn: NSRect(x: 6.9, y: 11.9, width: 0.95, height: 0.95)).fill()
                 NSBezierPath(ovalIn: NSRect(x: 9.9, y: 11.9, width: 0.95, height: 0.95)).fill()
             }
+        case .shiba:
+            NSGraphicsContext.current?.imageInterpolation = .high
+            ShibaPetAsset.normalImage?.draw(
+                in: NSRect(x: 0, y: 0, width: 18, height: 18),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1
+            )
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: NSRect(x: 6.1, y: 11, width: 1.4, height: 1.4)).fill()
+            NSBezierPath(ovalIn: NSRect(x: 10.5, y: 11, width: 1.4, height: 1.4)).fill()
         }
 
         image.unlockFocus()

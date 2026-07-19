@@ -18,67 +18,19 @@ struct PetView: View {
     @State private var actionPlaybackTask: Task<Void, Never>?
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let expression = visualExpression
-            let isSleeping = expression == .sleeping
-            let isListening = expression == .listening
-            let sleepingConfiguration = activeVisualConfiguration.configuration(for: .sleeping)
-            let sleepingBreathEnabled = sleepingConfiguration.resolvedSleepingBreathEnabled
-                && supportsSleepingBreath(for: sleepingConfiguration)
-            let breathScale = sleepingBreathScale(
-                at: timeline.date,
-                isSleeping: isSleeping && sleepingBreathEnabled
-            )
-            let listeningMotion = listeningMotion(at: timeline.date, isListening: isListening)
-
-            ZStack(alignment: .bottomLeading) {
-                Color.clear
-
-                petBody(breathScale: breathScale, listeningRotation: listeningMotion.rotation)
-                    .offset(
-                        x: PetMetrics.bodyInsetX + listeningMotion.x,
-                        y: -PetMetrics.bodyInsetY + listeningMotion.y + groundAlignmentOffset
-                    )
-
-                if isSleeping {
-                    SleepBubblesView(date: timeline.date)
-                        .allowsHitTesting(false)
+        Group {
+            if needsTimelineUpdates {
+                TimelineView(.animation) { timeline in
+                    petContent(at: timeline.date)
                 }
-
-                if isListening {
-                    MusicNotesView(date: timeline.date)
-                        .allowsHitTesting(false)
-                }
-
-                if let effect = motionState.experienceGainEffect {
-                    ExperienceGainView(
-                        text: languageSettings.experienceGainText(effect.amount)
-                    )
-                    .id(effect.id)
-                    .position(
-                        x: PetMetrics.bodyInsetX + PetMetrics.bodySize / 2,
-                        y: PetMetrics.canvasHeight - PetMetrics.bodyInsetY - PetMetrics.bodySize - 8
-                    )
-                    .allowsHitTesting(false)
-                }
-
-                if let effect = motionState.satietyGainEffect {
-                    ExperienceGainView(
-                        text: languageSettings.satietyGainText(effect.amount)
-                    )
-                    .id(effect.id)
-                    .position(
-                        x: PetMetrics.bodyInsetX + PetMetrics.bodySize / 2,
-                        y: PetMetrics.canvasHeight - PetMetrics.bodyInsetY - PetMetrics.bodySize - 26
-                    )
-                    .allowsHitTesting(false)
-                }
+            } else {
+                petContent(at: .now)
             }
-            .contentShape(Rectangle())
-            .onChange(of: state.expression) { _, expression in
-                if expression == .happy {
-                    pulse()
-                }
+        }
+        .contentShape(Rectangle())
+        .onChange(of: state.expression) { _, expression in
+            if expression == .happy {
+                pulse()
             }
         }
         .onAppear(perform: restartActionPlaybackLoop)
@@ -90,6 +42,76 @@ struct PetView: View {
             restartActionPlaybackLoop()
         }
         .frame(width: PetMetrics.canvasWidth, height: PetMetrics.canvasHeight)
+    }
+
+    private var needsTimelineUpdates: Bool {
+        switch visualExpression {
+        case .sleeping, .listening:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func petContent(at date: Date) -> some View {
+        let expression = visualExpression
+        let isSleeping = expression == .sleeping
+        let isListening = expression == .listening
+        let sleepingConfiguration = activeVisualConfiguration.configuration(for: .sleeping)
+        let sleepingBreathEnabled = sleepingConfiguration.resolvedSleepingBreathEnabled
+            && supportsSleepingBreath(for: sleepingConfiguration)
+        let breathScale = sleepingBreathScale(
+            at: date,
+            isSleeping: isSleeping && sleepingBreathEnabled
+        )
+        let listeningMotion = listeningMotion(at: date, isListening: isListening)
+
+        return ZStack(alignment: .bottomLeading) {
+            Color.clear
+
+            petBody(breathScale: breathScale, listeningRotation: listeningMotion.rotation)
+                .offset(
+                    x: PetMetrics.bodyInsetX + listeningMotion.x,
+                    y: -PetMetrics.bodyInsetY + listeningMotion.y + groundAlignmentOffset
+                )
+
+            if isSleeping {
+                sleepEffectView(
+                    sleepingConfiguration.resolvedSleepingEffect,
+                    date: date
+                )
+                    .allowsHitTesting(false)
+            }
+
+            if isListening {
+                MusicNotesView(date: date)
+                    .allowsHitTesting(false)
+            }
+
+            if let effect = motionState.experienceGainEffect {
+                ExperienceGainView(
+                    text: languageSettings.experienceGainText(effect.amount)
+                )
+                .id(effect.id)
+                .position(
+                    x: PetMetrics.bodyInsetX + PetMetrics.bodySize / 2,
+                    y: PetMetrics.canvasHeight - PetMetrics.bodyInsetY - PetMetrics.bodySize - 8
+                )
+                .allowsHitTesting(false)
+            }
+
+            if let effect = motionState.satietyGainEffect {
+                ExperienceGainView(
+                    text: languageSettings.satietyGainText(effect.amount)
+                )
+                .id(effect.id)
+                .position(
+                    x: PetMetrics.bodyInsetX + PetMetrics.bodySize / 2,
+                    y: PetMetrics.canvasHeight - PetMetrics.bodyInsetY - PetMetrics.bodySize - 26
+                )
+                .allowsHitTesting(false)
+            }
+        }
     }
 
     private func petBody(breathScale: CGFloat, listeningRotation: CGFloat) -> some View {
@@ -178,6 +200,16 @@ struct PetView: View {
                     customEyeAsset: customEyeAsset,
                     appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
                 )
+            case .shiba:
+                ShibaPetView(
+                    expression: expression,
+                    isBlinking: state.isBlinking,
+                    gazeOffset: motionState.gazeOffset,
+                    mouthOpen: mouthOpen,
+                    visualConfiguration: configuration,
+                    customEyeAsset: customEyeAsset,
+                    appliesVerticalBaseOffsetInView: appliesVerticalBaseOffsetInView
+                )
                 }
             }
         }
@@ -190,6 +222,16 @@ struct PetView: View {
         .rotationEffect(.degrees(motionState.rotationDegrees + listeningRotation))
         .animation(.easeInOut(duration: 0.25), value: appearanceSettings.selectedSkinID)
         .animation(.easeInOut(duration: 0.25), value: appearanceSettings.selectedPetID)
+    }
+
+    @ViewBuilder
+    private func sleepEffectView(_ effect: PetSleepingEffect, date: Date) -> some View {
+        switch effect {
+        case .bubbles:
+            SleepBubblesView(date: date)
+        case .zzz:
+            SleepZzzView(date: date)
+        }
     }
 
     private var activeVisualConfiguration: PetVisualConfiguration {
@@ -265,7 +307,10 @@ struct PetView: View {
         isHungry: Bool,
         isEating: Bool
     ) -> PetExpression {
-        guard !isEating, isHungry, expression == .calm else {
+        // Hunger is the persistent idle appearance. It should remain visible
+        // even if the underlying interaction state is sleeping, listening, or
+        // temporarily reacting to a grab; only active eating takes precedence.
+        guard !isEating, isHungry else {
             return expression
         }
         return .hungry
@@ -288,6 +333,8 @@ struct PetView: View {
             case "cat.yellow": 12.6
             default: 10.8
             }
+        case .shiba:
+            return 10.8
         }
     }
 

@@ -51,7 +51,9 @@ final class PetPhysicsController {
         lastStepTime = ProcessInfo.processInfo.systemUptime
 
         let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            // The timer is explicitly attached to RunLoop.main below, so stepping
+            // synchronously avoids allocating a new task for every physics frame.
+            MainActor.assumeIsolated {
                 self?.step()
             }
         }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -53,6 +54,46 @@ struct PetImportedVisualAsset {
     }
 }
 
+/// Shared decoded-image cache for user-provided still images and animation frames.
+/// Assets are immutable between editor mutations, which makes URL-based caching safe
+/// as long as callers invalidate the affected URLs before changing them on disk.
+enum PetImportedImageCache {
+    private static let cache: NSCache<NSURL, NSImage> = {
+        let cache = NSCache<NSURL, NSImage>()
+        cache.countLimit = 160
+        cache.totalCostLimit = 96 * 1_024 * 1_024
+        return cache
+    }()
+
+    static func image(for url: URL) -> NSImage? {
+        let key = url as NSURL
+        if let image = cache.object(forKey: key) {
+            return image
+        }
+
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        cache.setObject(image, forKey: key, cost: memoryCost(of: image))
+        return image
+    }
+
+    static func removeImage(for url: URL) {
+        cache.removeObject(forKey: url as NSURL)
+    }
+
+    static func removeImages(for urls: [URL]) {
+        for url in urls {
+            removeImage(for: url)
+        }
+    }
+
+    private static func memoryCost(of image: NSImage) -> Int {
+        let bitmap = image.representations.compactMap { $0 as? NSBitmapImageRep }.first
+        let width = bitmap?.pixelsWide ?? Int(image.size.width)
+        let height = bitmap?.pixelsHigh ?? Int(image.size.height)
+        return max(width * height * 4, 1)
+    }
+}
+
 final class PetAssetStore {
     private static let maximumFileSize = 20 * 1_024 * 1_024
     private static let maximumPixelDimension = 4_096
@@ -64,6 +105,7 @@ final class PetAssetStore {
 
     private let fileManager: FileManager
     private let assetsDirectoryURL: URL
+    private var visualAssetsByID: [String: PetImportedVisualAsset] = [:]
 
     init(assetsDirectoryURL: URL, fileManager: FileManager = .default) {
         self.assetsDirectoryURL = assetsDirectoryURL
@@ -87,6 +129,7 @@ final class PetAssetStore {
         )
 
         let assetID = UUID().uuidString.lowercased()
+        visualAssetsByID.removeValue(forKey: assetID)
         if sourceURLs.count == 1 {
             let sourceURL = sourceURLs[0]
             let destinationURL = url(for: assetID, pathExtension: validatedAssets[0].pathExtension)
@@ -117,12 +160,17 @@ final class PetAssetStore {
 
     func visualAsset(for assetID: String) -> PetImportedVisualAsset? {
         guard Self.isValidAssetID(assetID) else { return nil }
+        if let asset = visualAssetsByID[assetID] {
+            return asset
+        }
 
         if let imageURL = directAssetURL(for: assetID) {
             let kind: PetImportedVisualAsset.Kind = imageURL.pathExtension.lowercased() == "gif"
                 ? .gif
                 : .stillImage
-            return PetImportedVisualAsset(kind: kind, imageURL: imageURL, frameURLs: [])
+            let asset = PetImportedVisualAsset(kind: kind, imageURL: imageURL, frameURLs: [])
+            visualAssetsByID[assetID] = asset
+            return asset
         }
 
         let directoryURL = framesDirectoryURL(for: assetID)
@@ -130,11 +178,13 @@ final class PetAssetStore {
         let firstFrameURL = frameURLs.first else {
             return nil
         }
-        return PetImportedVisualAsset(
+        let asset = PetImportedVisualAsset(
             kind: .frameAnimation,
             imageURL: firstFrameURL,
             frameURLs: frameURLs
         )
+        visualAssetsByID[assetID] = asset
+        return asset
     }
 
     func existingURL(for assetID: String) -> URL? {
@@ -155,6 +205,9 @@ final class PetAssetStore {
             throw PetAssetStoreError.frameIndexOutOfRange
         }
         guard sourceIndex != destinationIndex else { return }
+
+        visualAssetsByID.removeValue(forKey: assetID)
+        PetImportedImageCache.removeImages(for: frameURLs)
 
         var reorderedFrameURLs = frameURLs
         let movedFrameURL = reorderedFrameURLs.remove(at: sourceIndex)
@@ -194,11 +247,23 @@ final class PetAssetStore {
             throw PetAssetStoreError.frameIndexOutOfRange
         }
 
+        visualAssetsByID.removeValue(forKey: assetID)
+        PetImportedImageCache.removeImage(for: frameURLs[index])
         try fileManager.removeItem(at: frameURLs[index])
     }
 
     func removeAsset(id assetID: String) throws {
         guard Self.isValidAssetID(assetID) else { return }
+        var cachedURLs = visualAssetsByID[assetID]?.frameURLs ?? []
+        for pathExtension in ["png", "jpg", "jpeg", "heic", "gif"] {
+            cachedURLs.append(url(for: assetID, pathExtension: pathExtension))
+        }
+        if let frameURLs = try? orderedFrameURLs(in: framesDirectoryURL(for: assetID)) {
+            cachedURLs.append(contentsOf: frameURLs)
+        }
+        visualAssetsByID.removeValue(forKey: assetID)
+        PetImportedImageCache.removeImages(for: cachedURLs)
+
         for pathExtension in ["png", "jpg", "jpeg", "heic", "gif"] {
             let assetURL = url(for: assetID, pathExtension: pathExtension)
             if fileManager.fileExists(atPath: assetURL.path) {

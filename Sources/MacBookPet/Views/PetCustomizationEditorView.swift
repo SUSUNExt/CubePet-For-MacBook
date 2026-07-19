@@ -244,6 +244,7 @@ struct PetCustomizationEditorView: View {
                 Picker(label(.eyeStyle), selection: eyeKindBinding) {
                     Text(label(.bigEyes)).tag(PetEyeModuleKind.catDefault)
                     Text(label(.smallBlackBlockEyes)).tag(PetEyeModuleKind.tracking)
+                    Text(label(.shibaWatercolorEyes)).tag(PetEyeModuleKind.shibaWatercolor)
                     Text(label(.happy)).tag(PetEyeModuleKind.happy)
                     Text(label(.scared)).tag(PetEyeModuleKind.scared)
                     Text(label(.sleeping)).tag(PetEyeModuleKind.sleeping)
@@ -353,7 +354,14 @@ struct PetCustomizationEditorView: View {
 
             Menu {
                 ForEach(
-                    [PetEyeModuleKind.catDefault, .tracking, .happy, .scared, .sleeping],
+                    [
+                        PetEyeModuleKind.catDefault,
+                        .tracking,
+                        .shibaWatercolor,
+                        .happy,
+                        .scared,
+                        .sleeping
+                    ],
                     id: \.self
                 ) { kind in
                     Button(eyeTypeName(for: kind)) {
@@ -776,6 +784,15 @@ struct PetCustomizationEditorView: View {
                             .padding(10)
                     }
                 }
+
+                Text(label(.sleepingEffect))
+                    .font(.callout)
+                Picker(label(.sleepingEffect), selection: sleepingEffectBinding) {
+                    Text(label(.sleepingBubbles)).tag(PetSleepingEffect.bubbles)
+                    Text(label(.sleepingZzz)).tag(PetSleepingEffect.zzz)
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
             }
         }
         .frame(width: 170, alignment: .topLeading)
@@ -913,6 +930,15 @@ struct PetCustomizationEditorView: View {
                 gazeOffset: .zero,
                 mouthOpen: previewMouthOpen,
                 skinID: editingSkin?.id ?? PetCatalog.cat.skins[0].id,
+                visualConfiguration: draft,
+                customEyeAsset: customEyeAsset
+            )
+        case .shiba:
+            ShibaPetView(
+                expression: expression,
+                isBlinking: false,
+                gazeOffset: .zero,
+                mouthOpen: previewMouthOpen,
                 visualConfiguration: draft,
                 customEyeAsset: customEyeAsset
             )
@@ -1062,6 +1088,7 @@ struct PetCustomizationEditorView: View {
         case .expressionDriven: label(.bigEyes)
         case .catDefault: label(.bigEyes)
         case .tracking: label(.smallBlackBlockEyes)
+        case .shibaWatercolor: label(.shibaWatercolorEyes)
         case .happy: label(.happy)
         case .scared: label(.scared)
         case .sleeping: label(.sleeping)
@@ -1635,7 +1662,7 @@ struct PetCustomizationEditorView: View {
     private func frameThumbnail(url: URL, index: Int) -> some View {
         ZStack(alignment: .topLeading) {
             Group {
-                if let image = NSImage(contentsOf: url) {
+                if let image = PetImportedImageCache.image(for: url) {
                     Image(nsImage: image)
                         .resizable()
                         .interpolation(.high)
@@ -1823,6 +1850,15 @@ struct PetCustomizationEditorView: View {
                 updateCurrentState {
                     $0.sleepingBreathEnabled = isEnabled ? nil : false
                 }
+            }
+        )
+    }
+
+    private var sleepingEffectBinding: Binding<PetSleepingEffect> {
+        Binding(
+            get: { currentStateConfiguration.resolvedSleepingEffect },
+            set: { effect in
+                updateCurrentState { $0.sleepingEffect = effect }
             }
         )
     }
